@@ -5,6 +5,10 @@ import os
 import StringIO
 
 """
+Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
+"""
+
+"""
     # Actionscript
     def actionscript(self, datagrid):
         commentLine = "#"
@@ -54,14 +58,15 @@ import StringIO
         outputText = 'Dim myArray(' + (j-1) + ',' + (i-1) + ')' + self.newline + outputText
         return outputText
 """
+
+
 """
-    #MYSQL
+    # Hard part with MySQL is detecting the field types.
+    #MySQL
     def mysql(self, datagrid):
         #inits...
-        commentLine = "/*"
-        commentLineEnd = "*/"
         outputText = ""
-        tableName = "MrDataConverter"
+        tableName = "change_this_table_name"
 
         #begin render loop
         outputText += 'CREATE TABLE ' + tableName + ' (' + self.newline
@@ -98,8 +103,6 @@ import StringIO
         }
         outputText += ";"
         return outputText
-
-
     # PHP
     def php(self, datagrid):
         #inits...
@@ -158,9 +161,10 @@ import StringIO
 
         return outputText
 
-
+    # Probably better to figure out how to do XML programatically, not by messing around with strings.
     # XML Nodes
     def xml(self, datagrid):
+        from xml.dom.minidom import parse
         #inits...
         commentLine = "<!--"
         commentLineEnd = "-->"
@@ -204,13 +208,26 @@ import StringIO
         outputText += "</rows>"
 
         return outputText
-"""
+    """
 
 
 class CsvConvertCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, **kwargs):
-        self.formats = {
+        self.set_settings(kwargs)
+
+        if self.view.sel()[0].empty():
+            self.view.sel().add(sublime.Region(0, self.view.size()))
+        for sel in self.view.sel():
+            datagrid = self.import_csv(self.view.substr(sel).encode('utf-8'))
+            self.view.replace(edit, sel, self.converter(datagrid))
+
+        self.view.set_syntax_file(self.syntax)
+        if self.settings.get('deselect', True):
+            self.deselect()
+
+    def set_settings(self, kwargs):
+        formats = {
             "html": {'syntax': '../HTML/HTML.tmLanguage', 'function': self.html},
             "json": {'syntax': '../JavaScript/JavaScript.tmLanguage', 'function': self.json},
             "json (array of columns)": {'syntax': '../JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayCols},
@@ -218,23 +235,22 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             "python": {'syntax': '../Python/Python.tmLanguage', 'function': self.python}
         }
 
-        format = self.formats[kwargs['format']]
-        converter = format['function']
-        syntax = format['syntax']
+        format = formats[kwargs['format']]
+        self.converter = format['function']
+        self.syntax = format['syntax']
 
+        self.settings = sublime.load_settings('csvconverter.sublime-settings')
+
+        # New lines
+        self.newline = self.settings.get('line_sep', "\n")
+        if self.newline == False:
+            self.newline = os.line_sep
+
+        # Indentation
         if (self.view.settings().get('translate_tabs_to_spaces')):
-            self.indent = int(self.view.settings().get('tab_size', 4))
+            self.indent = " " * int(self.view.settings().get('tab_size', 4))
         else:
             self.indent = "\t"
-            self.newline = "\n"
-
-        if self.view.sel()[0].empty():
-            self.view.sel().add(sublime.Region(0, self.view.size()))
-        for sel in self.view.sel():
-            datagrid = self.import_csv(self.view.substr(sel).encode('utf-8'))
-            self.view.replace(edit, sel, converter(datagrid))
-
-        self.view.set_syntax_file(syntax)
 
     def import_csv(self, selection):
         sample = selection[:1024]
@@ -244,7 +260,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
         firstrow = sample.splitlines()[0].split(dialect.delimiter)
 
-        if csv.Sniffer().has_header(sample):
+        if self.settings.get('assume_headers', True) or csv.Sniffer().has_header(sample):
             self.headers = firstrow
         else:
             self.headers = ["val" + str(x) for x in range(len(firstrow))]
@@ -254,44 +270,51 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             fieldnames=self.headers,
             dialect=dialect)
 
+        if self.headers == firstrow:
+            reader.next()
+
         return reader
+
+    # Adapted from https://gist.github.com/1608283
+    def deselect(self):
+        end = self.view.sel()[0].b
+        pt = sublime.Region(end, end)
+        self.view.sel().clear()
+        self.view.sel().add(pt)
+
+    # Helper for HTML converter
+    def tr(self, string):
+        return (self.indent * 2) + "<tr>" + self.newline + string + (self.indent * 2) + "</tr>" + self.newline
 
     # HTML Table
     def html(self, datagrid):
-        outputText = ""
+        nl = self.newline
+        ind = self.indent
 
-        #begin render loop
-        outputText += "<table>" + self.newline
-        outputText += self.indent + "<thead>" + self.newline
-        outputText += self.indent * 2
-        outputText += "<tr>" + self.newline
+        table = "<table>" + nl
+        table += ind + "<thead>" + nl + "{0}</thead>" + nl
+        table += ind + "<tbody>" + nl + "{1}</tbody>" + nl
+        table += "</table>"
 
+        # Render table head
+        thead = ""
         for header in self.headers:
-            outputText += self.indent * 3
-            outputText += '<th>' + header + '</th>'
-            outputText += self.newline
+            thead += (ind * 3) + '<th>' + header + '</th>' + nl
+        thead = self.tr(thead)
 
-        outputText += self.indent * 2
-        outputText += "</tr>" + self.newline
-        outputText += self.indent + "</thead>" + self.newline
-        outputText += self.indent + "<tbody>" + self.newline
-
+        # Render table rows
+        tbody = ""
         for row in datagrid:
-            outputText += self.indent * 2
-            outputText += "<tr>" + self.newline
+            rowText = ""
 
-            for key, item in row.iteritems():
-                outputText += self.indent * 3
-                outputText += '<td>' + item + '</td>' + self.newline
+            # Sadly, dictReader doesn't always preserve row order,
+            # so we loop through the headers instead.
+            for key in self.headers:
+                rowText += (ind * 3) + '<td>' + row[key] + '</td>' + nl
 
-            outputText += self.indent * 2
-            outputText += "</tr>" + self.newline
+            tbody += self.tr(rowText)
 
-        outputText += self.indent + "</tbody>" + self.newline
-        outputText += "</table>"
-
-        self.view.set_syntax_file('HTML/HTML.tmLanguage')
-        return outputText
+        return table.format(thead, tbody)
 
     # JSON properties
     def json(self, datagrid):
@@ -323,7 +346,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         return json.dumps(rowArrays)
 
     # Python dict
-    def python(datagrid):
+    def python(self, datagrid):
         outDicts = []
         for row in datagrid:
             outDicts.append(row)
