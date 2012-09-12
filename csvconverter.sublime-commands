@@ -1,0 +1,7 @@
+[ 
+  { "caption": "Convert CSV to JSON", "command": "csv_convert", "args": {"format": "json" } },
+  { "caption": "Convert CSV to HTML Table", "command": "csv_convert", "args": {"format": "html" } },
+  { "caption": "Convert CSV to JSON (array of columns)", "command": "csv_convert", "args": {"format": "json (array of columns)" } },
+  { "caption": "Convert CSV to JSON (array of rows)", "command": "csv_convert", "args": {"format": "json (array of rows)" } },
+  { "caption": "Convert CSV to Python", "command": "csv_convert", "args": {"format": "python" } }
+]
