@@ -1,10 +1,13 @@
 {
   // This defaults to True. Copy this file to your user folder and uncomment this line
   // to always sniff for headers (sniffing isn't perfect!) 
-  //"assume_headers": false
+  //"assume_headers": false,
 
   // If false: Defaults to the OS line separator
   "line_sep": "\n",
+
+  // CSV Converter will try to detect the delimiter used. If it has a problem, it will use this value
+  "delimiter": ",",
 
   // If true: after converting, deselects and moves the pointer to the top. (default)
   // If false: leaves selection(s) in place
