@@ -3,6 +3,10 @@
   // to always sniff for headers (sniffing isn't perfect!) 
   //"assume_headers": false
 
-  // Set to false to always use the OS line seperator
-  "line_sep": "\n"
+  // If false: Defaults to the OS line separator
+  "line_sep": "\n",
+
+  // If true: after converting, deselects and moves the pointer to the top. (default)
+  // If false: leaves selection(s) in place
+  "deselect": true
 }
