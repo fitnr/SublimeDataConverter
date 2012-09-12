@@ -12,15 +12,21 @@ Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
 class CsvConvertCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, **kwargs):
-        self.set_settings(kwargs)
+        try:
+            self.set_settings(kwargs)
+        except Exception as e:
+            print "CSV Converter: error fetching settings. Did you specify a format?", e
+            return
 
         if self.view.sel()[0].empty():
             self.view.sel().add(sublime.Region(0, self.view.size()))
+
         for sel in self.view.sel():
             datagrid = self.import_csv(self.view.substr(sel).encode('utf-8'))
             self.view.replace(edit, sel, self.converter(datagrid))
 
         self.view.set_syntax_file(self.syntax)
+
         if self.settings.get('deselect', True):
             self.deselect()
 
@@ -30,7 +36,9 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             "json": {'syntax': '../JavaScript/JavaScript.tmLanguage', 'function': self.json},
             "json (array of columns)": {'syntax': '../JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayCols},
             "json (array of rows)": {'syntax': '../JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayRows},
-            "python": {'syntax': '../Python/Python.tmLanguage', 'function': self.python}
+            "python": {'syntax': '../Python/Python.tmLanguage', 'function': self.python},
+            "xml": {'syntax': '../XML/XML.tmLanguage', 'function': self.xml},
+            "xmlProperties": {'syntax': '../XML/XML.tmLanguage', 'function': self.xmlProperties}
         }
 
         format = formats[kwargs['format']]
@@ -38,6 +46,10 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         self.syntax = format['syntax']
 
         self.settings = sublime.load_settings('csvconverter.sublime-settings')
+
+        if kwargs['format'] == 'xml' or kwargs['format'] == 'xmlProperties':
+            print 'setting this to true'
+            self.settings.set('merge_headers', True)
 
         # New lines
         self.newline = self.settings.get('line_sep', "\n")
@@ -52,11 +64,26 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     def import_csv(self, selection):
         sample = selection[:1024]
-        dialect = csv.Sniffer().sniff(sample)
+        try:
+            dialect = csv.Sniffer().sniff(sample)
+        except Exception as e:
+            print "CSV Converter had trouble sniffing:", e
+            delimiter = self.settings.get('delimiter', ",")
+            try:
+                csv.register_dialect('barebones', delimiter=delimiter)
+            except Exception as e:
+                print delimiter + ":", e
+
+            dialect = csv.get_dialect('barebones')
 
         csvIO = StringIO.StringIO(selection)
 
         firstrow = sample.splitlines()[0].split(dialect.delimiter)
+
+        # Replace spaces in the header names for some formats.
+        r = self.settings.get('merge_headers', False)
+        if r:
+            firstrow = [x.replace(' ', '_') for x in firstrow]
 
         if self.settings.get('assume_headers', True) or csv.Sniffer().has_header(sample):
             self.headers = firstrow
@@ -79,6 +106,9 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         top = self.view.sel()[0].a
         self.view.sel().clear()
         self.view.sel().add(sublime.Region(top, top))
+
+    # Converters
+    # ==========
 
     # Helper for HTML converter
     def tr(self, string):
@@ -108,7 +138,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             # Sadly, dictReader doesn't always preserve row order,
             # so we loop through the headers instead.
             for key in self.headers:
-                rowText += (ind * 3) + '<td>' + row[key] + '</td>' + nl
+                rowText += (ind * 3) + '<td>' + (row[key] or "") + '</td>' + nl
 
             tbody += self.tr(rowText)
 
@@ -145,7 +175,45 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     # Python dict
     def python(self, datagrid):
-        outDicts = []
+        out = []
         for row in datagrid:
-            outDicts.append(row)
-        return repr(outDicts)
+            out.append(row)
+        return repr(out)
+
+    # XML Nodes
+    def xml(self, datagrid):
+        output_text = '<?xml version="1.0" encoding="UTF-8"?>' + self.newline
+        output_text += "<rows>" + self.newline
+
+        #begin render loop
+        for row in datagrid:
+            output_text += self.indent + "<row>" + self.newline
+            for header in self.headers:
+                line = (self.indent * 2) + '<{1}>{0}</{1}>' + self.newline
+                item = row[header] or ""
+                output_text += line.format(item, header)
+            output_text += self.indent + "</row>" + self.newline
+
+        output_text += "</rows>"
+
+        return output_text
+
+    # XML properties
+    def xmlProperties(self, datagrid):
+        output_text = '<?xml version="1.0" encoding="UTF-8"?>' + self.newline
+        output_text += "<rows>" + self.newline
+
+        #begin render loop
+        for row in datagrid:
+            row_list = []
+
+            for header in self.headers:
+                item = row[header] or ""
+                row_list.append('{0}="{1}"'.format(header, item))
+                row_text = " ".join(row_list)
+
+            output_text += self.indent + "<row " + row_text + "></row>" + self.newline
+
+        output_text += "</rows>"
+
+        return output_text
