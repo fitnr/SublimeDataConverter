@@ -63,15 +63,15 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         self.settings = sublime.load_settings(PACKAGES + '/CSVConverter/csvconverter.sublime-settings')
 
         # Combine headers for xml formats
-        no_space_formats = ['actionscript', 'msyql, xml', 'xml_properties']
+        no_space_formats = ['actionscript', 'mysql', 'xml', 'xml_properties']
         if kwargs['format'] in no_space_formats:
-            self.settings.set('merge_headers', True)
+            self.settings.set('mergeheaders', True)
 
         no_type_formats = ["html", "json", "json_columns", "json_rows", "python", "xml", "xml_properties"]
         if kwargs['format'] in no_type_formats:
-            self.settings.set('get_types', False)
+            self.settings.set('gettypes', False)
         else:
-            self.settings.set('get_types', True)
+            self.settings.set('gettypes', True)
 
         # New lines
         self.newline = self.settings.get('line_sep', "\n")
@@ -106,8 +106,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         firstrow = sample.splitlines()[0].split(dialect.delimiter)
 
         # Replace spaces in the header names for some formats.
-        r = self.settings.get('merge_headers', False)
-        if r:
+        if self.settings.get('mergeheaders', False) is True:
             firstrow = [x.replace(' ', '_') for x in firstrow]
 
         if self.settings.get('assume_headers', True) or csv.Sniffer().has_header(sample):
@@ -124,7 +123,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             reader.next()
             header_flag = True
 
-        if self.settings.get('get_types', True):
+        if self.settings.get('gettypes', True) is True:
             self.types = self.parse(reader, self.headers)
 
             # Reset what you just broke
@@ -306,7 +305,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         self.syntax = PACKAGES + '/SQL/SQL.tmLanguage'
 
         table = 'CSVConverter'
-        print self.types
+
         # CREATE TABLE statement
         create = 'CREATE TABLE ' + table + '(' + self.newline
         create += self.indent + "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY," + self.newline

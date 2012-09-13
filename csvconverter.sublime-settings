@@ -1,7 +1,7 @@
 {
-  // This defaults to True. Copy this file to your user folder and uncomment this line
+  // Copy this file to your user folder and uncomment this line
   // to always sniff for headers (sniffing isn't perfect!) 
-  //"assume_headers": false,
+  "assume_headers": true,
 
   // If false: Defaults to the OS line separator
   "line_sep": "\n",
