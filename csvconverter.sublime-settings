@@ -1,15 +1,15 @@
 {
-  // Copy this file to your user folder and uncomment this line
-  // to always sniff for headers (sniffing isn't perfect!) 
+  // When true, the first row is treated as the header row
+  // Set to false to always sniff for headers (sniffing isn't perfect!) 
   "assume_headers": true,
 
   // If false: Defaults to the OS line separator
   "line_sep": "\n",
 
-  // CSV Converter will try to detect the delimiter used. If it has a problem, it will use this value
+  // The converter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
   "delimiter": ",",
 
-  // If true: after converting, deselects and moves the pointer to the top. (default)
+  // If true: after converting, deselects and moves the pointer to the top.
   // If false: leaves selection(s) in place
-  "deselect_after": true
+  "deselect_after": false
 }
