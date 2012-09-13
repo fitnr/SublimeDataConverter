@@ -186,6 +186,21 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     # Converters
     # ==========
 
+    # Helper loop for checking types as we write out a row.
+    # row is a dictionary returned from DictReader
+    def type_loop(self, row, form='"{0}": {1}', nulltxt='null'):
+        out = ''
+        for key, typ in zip(self.headers, self.types):
+            if typ == str:
+                txt = '"' + row[key] + '"'
+            elif row[key] is None:
+                txt = nulltxt
+            else:
+                txt = row[key]
+
+            out += form.format(key, txt)
+        return out
+
     # Actionscript
     def actionscript(self, datagrid):
         self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
@@ -194,17 +209,9 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         #begin render loops
         for row in datagrid:
             output += "{"
-            for header, item_type in zip(self.headers, self.types):
+            output += self.type_loop(row, '{0}:{1},')
 
-                if item_type == str:
-                    row[header] = '"' + (row[header] or "") + '"'
-                if row[header] is None:
-                    row[header] = 'null'
-                output += header + ":" + row[header] + ","
-
-            output = output[0:-1]
-
-            output += "}" + "," + self.newline
+            output = output[0:-1] + "}" + "," + self.newline
 
         return  output[:-2] + "];"
 
@@ -339,34 +346,11 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         # loop through rows
         for row in datagrid:
             values += self.indent + "("
+            values += self.type_loop(row, form='{1},')
 
-            for key, item_type in zip(self.headers, self.types):
-
-                if item_type == str:
-                    row[key] = "'" + (row[key] or "") + "'"
-
-                if row[key] is None:
-                    row[key] = "null"
-
-                values += row[key] + ","
             values = values[:-1] + '),' + self.newline
 
         return create + insert + values[:-2] + ';'
-
-    # Helper loop for writing out types
-    # row is a dictionary returned from DictReader
-    def type_loop(self, row, form='"{0}": {1}', nulltxt='null'):
-        out = ''
-        for key, typ in zip(self.headers, self.types):
-            if typ == str:
-                txt = key, '"' + row[key] + '"'
-            elif row[key] is None:
-                txt = nulltxt
-            else:
-                txt = row[key]
-
-            out += form.format(key, txt)
-        return out
 
     # PHP
     def php(self, datagrid):
