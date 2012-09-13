@@ -43,57 +43,35 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     def set_settings(self, kwargs):
         formats = {
-            "actionscript": {
-                'syntax': PACKAGES + '/ActionScript/ActionScript.tmLanguage',
-                'function': self.actionscript
-            },
-            "asp": {
-                'syntax': PACKAGES + '/ASP/ASP.tmLanguage',
-                'function': self.asp
-            },
-            "html": {
-                'syntax': PACKAGES + '/HTML/HTML.tmLanguage',
-                'function': self.html
-            },
-            "json": {
-                'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage',
-                'function': self.json
-            },
-            "json (array of columns)": {
-                'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage',
-                'function': self.jsonArrayCols
-            },
-            "json (array of rows)": {
-                'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage',
-                'function': self.jsonArrayRows
-            },
-            "mysql": {
-                'syntax': PACKAGES + '/SQL/SQL.tmLanguage',
-                'function': self.mysql
-            },
-            "python": {
-                'syntax': PACKAGES + '/Python/Python.tmLanguage',
-                'function': self.python
-            },
-            "xml": {
-                'syntax': PACKAGES + '/XML/XML.tmLanguage',
-                'function': self.xml
-            },
-            "xmlProperties": {
-                'syntax': PACKAGES + '/XML/XML.tmLanguage',
-                'function': self.xmlProperties
-            }
+            "actionscript": self.actionscript,
+            "asp": self.asp,
+            "html": self.html,
+            "json": self.json,
+            "json_columns": self.jsonArrayCols,
+            "json_rows": self.jsonArrayRows,
+            "mysql": self.mysql,
+            "python": self.python,
+            "xml": self.xml,
+            "xml_properties": self.xmlProperties
         }
 
-        format = formats[kwargs['format']]
-        self.converter = format['function']
-        self.syntax = format['syntax']
+        self.converter = formats[kwargs['format']]
+
+        # This will be set later on, in the converter function
+        self.syntax = None
 
         self.settings = sublime.load_settings(PACKAGES + '/CSVConverter/csvconverter.sublime-settings')
 
         # Combine headers for xml formats
-        if kwargs['format'] == 'xml' or kwargs['format'] == 'xmlProperties':
+        no_space_formats = ['actionscript', 'msyql, xml', 'xml_properties']
+        if kwargs['format'] in no_space_formats:
             self.settings.set('merge_headers', True)
+
+        no_type_formats = ["html", "json", "json_columns", "json_rows", "python", "xml", "xml_properties"]
+        if kwargs['format'] in no_type_formats:
+            self.settings.set('get_types', False)
+        else:
+            self.settings.set('get_types', True)
 
         # New lines
         self.newline = self.settings.get('line_sep', "\n")
@@ -144,13 +122,15 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
         if self.headers == firstrow:
             reader.next()
+            header_flag = True
 
-        self.headers = self.parse(reader, self.headers)
+        if self.settings.get('get_types', True):
+            self.types = self.parse(reader, self.headers)
 
-        csvIO.seek(0)
-
-        if self.headers == firstrow:
-            reader.next()
+            # Reset what you just broke
+            csvIO.seek(0)
+            if header_flag:
+                reader.next()
 
         return reader
 
@@ -164,23 +144,32 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     # Parse data types
     # ==================
     def parse(self, reader, headers):
-        headers_dict = dict((h, []) for h in headers)
+        output_types, types, k = [], [], len(headers)
 
         for n in range(10):
-            row = reader.next()
+            try:
+                row = reader.next()
+            except:
+                break
 
-            for i, header in zip(row, headers):
+            tmp = []
+            for i, x in zip(row.values(), range(k)):
                 typ = self.get_type(i)
-                headers_dict['header'].append(typ)
+                tmp.append(typ)
+            types.append(tmp)
 
-        for header, type_list in headers_dict.items():
+        #rotate the array
+        types = zip(*types)[::-1]
+
+        for header, type_list in zip(headers, types):
             if str in type_list:
-                headers_dict[header] = str
+                output_types.append(str)
             elif float in type_list:
-                headers_dict[header] = float
+                output_types.append(float)
             else:
-                headers_dict[header] = int
-        return headers_dict
+                output_types.append(int)
+
+        return output_types
 
     def get_type(self, datum):
         try:
@@ -198,54 +187,60 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     # Actionscript
     def actionscript(self, datagrid):
+        self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
         output = "["
 
         #begin render loops
         for row in datagrid:
-            for item, header, item_type in row, self.headers.keys(), self.headers.values():
+            output += "{"
+            for header, item_type in zip(self.headers, self.types):
 
                 if item_type == str:
-                    row = '"' + (row or "") + '"'
-                if item is None:
-                    item = 'null'
-                output += "{" + header + ":" + item + ","
+                    row[header] = '"' + (row[header] or "") + '"'
+                if row[header] is None:
+                    row[header] = 'null'
+                output += header + ":" + row[header] + ","
 
             output = output[0:-1]
 
             output += "}" + "," + self.newline
 
-        output = output[:-2]
-        output += "];"
+        return  output[:-2] + "];"
 
     # ASP / VBScript
     def asp(self, datagrid):
-        #commentLine = "'"
-        #commentLineEnd = ""
-        output, r, indexer = "", 0, range(len(self.headers))
+        self.syntax = PACKAGES + '/ASP/ASP.tmLanguage'
+        #comment, comment_end = "'", ""
+        output, r = "", 0
+        zipper = zip(range(len(self.headers)), self.headers, self.types)
+        #print self.headers, self.types
 
         #begin render loop
         for row in datagrid:
-            for c, item, item_type, header in indexer, row, self.header.keys(), self.headers.values():
-                if item_type == str:
-                    item = '"' + (item or "") + '"'
-                if item_type is None:
-                    item = 'null'
 
-                output += 'myArray(' + c + ',' + r + ') = ' + row + self.newline
+            for c, key, item_type in zipper:
+
+                if item_type == str:
+                    row[key] = '"' + (row[key] or "") + '"'
+                if item_type is None:
+                    row[key] = 'null'
+
+                output += 'myArray({0},{1}) = {2}'.format(c, r, row[key] + self.newline)
             r = r + 1
 
-        output = 'Dim myArray({0},{1}){3}'.format(r, c, self.newline + output)
+        dim = 'Dim myArray({0},{1}){2}'.format(c, r - 1, self.newline)
 
-        return output
+        return dim + output
 
     # Helper for HTML converter
-    def tr(self, string):
-        return (self.indent * 2) + "<tr>" + self.newline + string + (self.indent * 2) + "</tr>" + self.newline
+    def tr(self, row):
+        return (self.indent * 2) + "<tr>" + self.newline + row + (self.indent * 2) + "</tr>" + self.newline
 
     # HTML Table
     def html(self, datagrid):
-        nl = self.newline
-        ind = self.indent
+        self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
+
+        nl, ind = self.newline, self.indent
 
         table = "<table>" + nl
         table += ind + "<thead>" + nl + "{0}</thead>" + nl
@@ -275,12 +270,16 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     # JSON properties
     def json(self, datagrid):
         import json
+        self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
+
         return json.dumps([row for row in datagrid])
 
     # JSON Array of Columns
     def jsonArrayCols(self, datagrid):
         import json
+        self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
         colDict = {}
+
         for row in datagrid:
             for key, item in row.iteritems():
                 if key not in colDict:
@@ -291,6 +290,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     # JSON Array of Rows
     def jsonArrayRows(self, datagrid):
         import json
+        self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
         rowArrays = []
 
         for row in datagrid:
@@ -303,8 +303,10 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     #MySQL
     def mysql(self, datagrid):
-        table = 'CSVConverter'
+        self.syntax = PACKAGES + '/SQL/SQL.tmLanguage'
 
+        table = 'CSVConverter'
+        print self.types
         # CREATE TABLE statement
         create = 'CREATE TABLE ' + table + '(' + self.newline
         create += self.indent + "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY," + self.newline
@@ -316,17 +318,17 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         values = "VALUES" + self.newline
 
         # Loop through headers
-        for header, item_type in self.header.items():
-            if item_type == str:
-                out_type = 'VARCHAR(255)'
-            elif item_type == float:
-                out_type == 'FLOAT'
-            elif item_type == int:
-                out_type = 'INT'
+        for header, typ in zip(self.headers, self.types):
+            if typ == str:
+                typ = 'VARCHAR(255)'
+            elif typ == float:
+                typ = 'FLOAT'
+            elif typ == int:
+                typ = 'INT'
 
             insert += header + ","
 
-            create += self.indent + header + " " + out_type + "," + self.newline
+            create += self.indent + header + " " + typ + "," + self.newline
 
         create = create[:-2] + self.newline  # Remove the comma
         create += ');' + self.newline
@@ -337,21 +339,22 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         for row in datagrid:
             values += self.indent + "("
 
-            for item, item_type in row, self.headers.values():
+            for key, item_type in zip(self.headers, self.types):
 
                 if item_type == str:
-                    item = "'" + (item or "") + "'"
+                    row[key] = "'" + (row[key] or "") + "'"
 
-                if item is None:
-                    item = "null"
+                if row[key] is None:
+                    row[key] = "null"
 
-                values += item + ","
-            values = values[:-1] + '),'
+                values += row[key] + ","
+            values = values[:-1] + '),' + self.newline
 
-        return create + insert + values[:-1]
+        return create + insert + values[:-2] + ';'
 
     # Python dict
     def python(self, datagrid):
+        self.syntax = PACKAGES + '/Python/Python.tmLanguage'
         out = []
         for row in datagrid:
             out.append(row)
@@ -359,6 +362,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     # XML Nodes
     def xml(self, datagrid):
+        self.syntax = PACKAGES + '/XML/XML.tmLanguage'
         output_text = '<?xml version="1.0" encoding="UTF-8"?>' + self.newline
         output_text += "<rows>" + self.newline
 
@@ -377,6 +381,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     # XML properties
     def xmlProperties(self, datagrid):
+        self.syntax = PACKAGES + '/XML/XML.tmLanguage'
         output_text = '<?xml version="1.0" encoding="UTF-8"?>' + self.newline
         output_text += "<rows>" + self.newline
 
