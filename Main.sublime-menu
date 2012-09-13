@@ -12,17 +12,17 @@
                 "children":
                 [
                     {
-                        "caption": "CSV Converter",
+                        "caption": "DataConverter",
                         "children":
                         [
                             {
                                 "command": "open_file", 
-                                "args": {"file": "${packages}/CSVConverter/csvconverter.sublime-settings"},
+                                "args": {"file": "${packages}/DataConverter/DataConverter.sublime-settings"},
                                 "caption": "Settings – Default"
                             },
                             {
                                 "command": "open_file", 
-                                "args": {"file": "${packages}/User/csvconverter.sublime-settings"},
+                                "args": {"file": "${packages}/User/DataConverter.sublime-settings"},
                                 "caption": "Settings – User"
                             },
                             { "caption": "-" }
