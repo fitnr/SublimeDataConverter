@@ -1,12 +1,21 @@
+"""
+CSVConverter
+package for Sublime Text 2
+
+2012-09-13
+
+https://github.com/fitnr/SublimeCSVConverter
+
+Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
+"""
+
 import sublime
 import sublime_plugin
 import csv
 import os
 import StringIO
 
-"""
-Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
-"""
+PACKAGES = sublime.packages_path()
 
 
 class CsvConvertCommand(sublime_plugin.TextCommand):
@@ -22,33 +31,35 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             self.view.sel().add(sublime.Region(0, self.view.size()))
 
         for sel in self.view.sel():
-            datagrid = self.import_csv(self.view.substr(sel).encode('utf-8'))
-            self.view.replace(edit, sel, self.converter(datagrid))
+            selection = self.view.substr(sel).encode('utf-8')
+            data = self.import_csv(selection)
+            converted = self.converter(data)
+            self.view.replace(edit, sel, converted)
 
         self.view.set_syntax_file(self.syntax)
 
-        if self.settings.get('deselect', True):
+        if self.deselect_flag:
             self.deselect()
 
     def set_settings(self, kwargs):
         formats = {
-            "html": {'syntax': '../HTML/HTML.tmLanguage', 'function': self.html},
-            "json": {'syntax': '../JavaScript/JavaScript.tmLanguage', 'function': self.json},
-            "json (array of columns)": {'syntax': '../JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayCols},
-            "json (array of rows)": {'syntax': '../JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayRows},
-            "python": {'syntax': '../Python/Python.tmLanguage', 'function': self.python},
-            "xml": {'syntax': '../XML/XML.tmLanguage', 'function': self.xml},
-            "xmlProperties": {'syntax': '../XML/XML.tmLanguage', 'function': self.xmlProperties}
+            "html": {'syntax': PACKAGES + '/HTML/HTML.tmLanguage', 'function': self.html},
+            "json": {'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage', 'function': self.json},
+            "json (array of columns)": {'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayCols},
+            "json (array of rows)": {'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayRows},
+            "python": {'syntax': PACKAGES + '/Python/Python.tmLanguage', 'function': self.python},
+            "xml": {'syntax': PACKAGES + '/XML/XML.tmLanguage', 'function': self.xml},
+            "xmlProperties": {'syntax': PACKAGES + '/XML/XML.tmLanguage', 'function': self.xmlProperties}
         }
 
         format = formats[kwargs['format']]
         self.converter = format['function']
         self.syntax = format['syntax']
 
-        self.settings = sublime.load_settings('csvconverter.sublime-settings')
+        self.settings = sublime.load_settings(PACKAGES + '/CSVConverter/csvconverter.sublime-settings')
 
+        # Combine headers for xml formats
         if kwargs['format'] == 'xml' or kwargs['format'] == 'xmlProperties':
-            print 'setting this to true'
             self.settings.set('merge_headers', True)
 
         # New lines
@@ -61,6 +72,9 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             self.indent = " " * int(self.view.settings().get('tab_size', 4))
         else:
             self.indent = "\t"
+
+        # Option to deselect after conversion.
+        self.deselect_flag = self.settings.get('deselect', True)
 
     def import_csv(self, selection):
         sample = selection[:1024]
@@ -98,11 +112,18 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         if self.headers == firstrow:
             reader.next()
 
+        self.headers = self.parse(reader, self.headers)
+
+        csvIO.seek(0)
+
+        if self.headers == firstrow:
+            reader.next()
+
         return reader
 
-    # Adapted from https://gist.github.com/1608283
-    # Moved pointer to top of view
+    #Adapted from https://gist.github.com/1608283
     def deselect(self):
+        """Remove selection and place pointer at top of document."""
         top = self.view.sel()[0].a
         self.view.sel().clear()
         self.view.sel().add(sublime.Region(top, top))
@@ -217,3 +238,35 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         output_text += "</rows>"
 
         return output_text
+
+    # Parse data types
+    # ==================
+    def parse(self, reader, headers):
+        headers_dict = dict((h, []) for h in headers)
+
+        for n in range(10):
+            row = reader.next()
+
+            for i, header in zip(row, headers):
+                typ = self.get_type(i)
+                headers_dict['header'].append(typ)
+
+        for header, type_list in headers_dict.items():
+            if str in type_list:
+                headers_dict[header] = str
+            elif float in type_list:
+                headers_dict[header] = float
+            else:
+                headers_dict[header] = int
+        return headers_dict
+
+    def get_type(self, datum):
+        try:
+            int(datum)
+            return int
+        except:
+            try:
+                float(datum)
+                return float
+            except:
+                return str
