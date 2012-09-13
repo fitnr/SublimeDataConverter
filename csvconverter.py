@@ -25,16 +25,18 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
         if self.view.sel()[0].empty():
             self.view.sel().add(sublime.Region(0, self.view.size()))
+            deselect_flag = True
 
         for sel in self.view.sel():
             selection = self.view.substr(sel).encode('utf-8')
             data = self.import_csv(selection)
             converted = self.converter(data)
             self.view.replace(edit, sel, converted)
+            deselect_flag = False
 
         self.view.set_syntax_file(self.syntax)
 
-        if self.deselect_flag:
+        if deselect_flag or self.settings.get('deselect_after'):
             self.deselect()
 
     def get_settings(self, kwargs):
@@ -81,9 +83,6 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             self.indent = " " * int(self.view.settings().get('tab_size', 4))
         else:
             self.indent = "\t"
-
-        # Option to deselect after conversion.
-        self.deselect_flag = self.settings.get('deselect_after', True)
 
     def import_csv(self, selection):
         sample = selection[:1024]
