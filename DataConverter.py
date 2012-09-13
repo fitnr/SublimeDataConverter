@@ -1,6 +1,6 @@
 """
-CSVConverter package for Sublime Text 2
-https://github.com/fitnr/SublimeCSVConverter
+DataConverter package for Sublime Text 2
+https://github.com/fitnr/SublimeDataConverter
 
 Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
 """
@@ -14,13 +14,13 @@ import StringIO
 PACKAGES = sublime.packages_path()
 
 
-class CsvConvertCommand(sublime_plugin.TextCommand):
+class DataConverterCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, **kwargs):
         try:
             self.get_settings(kwargs)
         except Exception as e:
-            print "CSV Converter: error fetching settings. Did you specify a format?", e
+            print "DataConverter: error fetching settings. Did you specify a format?", e
             return
 
         if self.view.sel()[0].empty():
@@ -60,7 +60,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         # This will be set later on, in the converter function
         self.syntax = None
 
-        self.settings = sublime.load_settings('csvconverter.sublime-settings')
+        self.settings = sublime.load_settings('DataConverter.sublime-settings')
 
         # Combine headers for xml formats
         no_space_formats = ['actionscript', 'mysql', 'xml', 'xml_properties']
@@ -89,7 +89,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         try:
             dialect = csv.Sniffer().sniff(sample)
         except Exception as e:
-            print "CSV Converter had trouble sniffing:", e
+            print "DataConverter had trouble sniffing:", e
             delimiter = self.settings.get('delimiter', ",")
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
@@ -309,7 +309,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     def mysql(self, datagrid):
         self.syntax = PACKAGES + '/SQL/SQL.tmLanguage'
 
-        table = 'CSVConverter'
+        table = 'DataConverter'
 
         # CREATE TABLE statement
         create = 'CREATE TABLE ' + table + '(' + self.newline
@@ -352,7 +352,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     def php(self, datagrid):
         self.syntax = PACKAGES + '/PHP/PHP.tmLanguage'
         #comment, comment_end = "//", ""
-        output = "$CSVConverter = array(" + self.newline
+        output = "$DataConverter = array(" + self.newline
 
         #begin render loop
         for row in datagrid:
@@ -375,7 +375,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     def ruby(self, datagrid):
         self.syntax = PACKAGES + '/Ruby/Ruby.tmLanguage'
         #comment, comment_end = "#", ""
-        output, tableName = "[", "CSVConverter"
+        output, tableName = "[", "DataConverter"
 
         #begin render loop
         for row in datagrid:
