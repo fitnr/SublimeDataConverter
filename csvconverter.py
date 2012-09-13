@@ -128,6 +128,38 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         self.view.sel().clear()
         self.view.sel().add(sublime.Region(top, top))
 
+    # Parse data types
+    # ==================
+    def parse(self, reader, headers):
+        headers_dict = dict((h, []) for h in headers)
+
+        for n in range(10):
+            row = reader.next()
+
+            for i, header in zip(row, headers):
+                typ = self.get_type(i)
+                headers_dict['header'].append(typ)
+
+        for header, type_list in headers_dict.items():
+            if str in type_list:
+                headers_dict[header] = str
+            elif float in type_list:
+                headers_dict[header] = float
+            else:
+                headers_dict[header] = int
+        return headers_dict
+
+    def get_type(self, datum):
+        try:
+            int(datum)
+            return int
+        except:
+            try:
+                float(datum)
+                return float
+            except:
+                return str
+
     # Converters
     # ==========
 
@@ -238,35 +270,3 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         output_text += "</rows>"
 
         return output_text
-
-    # Parse data types
-    # ==================
-    def parse(self, reader, headers):
-        headers_dict = dict((h, []) for h in headers)
-
-        for n in range(10):
-            row = reader.next()
-
-            for i, header in zip(row, headers):
-                typ = self.get_type(i)
-                headers_dict['header'].append(typ)
-
-        for header, type_list in headers_dict.items():
-            if str in type_list:
-                headers_dict[header] = str
-            elif float in type_list:
-                headers_dict[header] = float
-            else:
-                headers_dict[header] = int
-        return headers_dict
-
-    def get_type(self, datum):
-        try:
-            int(datum)
-            return int
-        except:
-            try:
-                float(datum)
-                return float
-            except:
-                return str
