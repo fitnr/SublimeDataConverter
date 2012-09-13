@@ -1,8 +1,11 @@
 [ 
+  { "caption": "Convert CSV to ActionScript", "command": "csv_convert", "args": {"format": "actionscript" } },
+  { "caption": "Convert CSV to ASP/VBScript", "command": "csv_convert", "args": {"format": "asp" } },
+  { "caption": "Convert CSV to HTML table", "command": "csv_convert", "args": {"format": "html" } },
   { "caption": "Convert CSV to JSON", "command": "csv_convert", "args": {"format": "json" } },
-  { "caption": "Convert CSV to HTML Table", "command": "csv_convert", "args": {"format": "html" } },
   { "caption": "Convert CSV to JSON (array of columns)", "command": "csv_convert", "args": {"format": "json (array of columns)" } },
   { "caption": "Convert CSV to JSON (array of rows)", "command": "csv_convert", "args": {"format": "json (array of rows)" } },
+  { "caption": "Convert CSV to MySQL", "command": "csv_convert", "args": {"format": "mysql" } },
   { "caption": "Convert CSV to Python", "command": "csv_convert", "args": {"format": "python" } },
   { "caption": "Convert CSV to XML Nodes", "command": "csv_convert", "args": {"format": "xml" } },
   { "caption": "Convert CSV to XML Properties", "command": "csv_convert", "args": {"format": "xmlProperties" } }

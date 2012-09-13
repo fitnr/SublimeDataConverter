@@ -43,13 +43,46 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     def set_settings(self, kwargs):
         formats = {
-            "html": {'syntax': PACKAGES + '/HTML/HTML.tmLanguage', 'function': self.html},
-            "json": {'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage', 'function': self.json},
-            "json (array of columns)": {'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayCols},
-            "json (array of rows)": {'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage', 'function': self.jsonArrayRows},
-            "python": {'syntax': PACKAGES + '/Python/Python.tmLanguage', 'function': self.python},
-            "xml": {'syntax': PACKAGES + '/XML/XML.tmLanguage', 'function': self.xml},
-            "xmlProperties": {'syntax': PACKAGES + '/XML/XML.tmLanguage', 'function': self.xmlProperties}
+            "actionscript": {
+                'syntax': PACKAGES + '/ActionScript/ActionScript.tmLanguage',
+                'function': self.actionscript
+            },
+            "asp": {
+                'syntax': PACKAGES + '/ASP/ASP.tmLanguage',
+                'function': self.asp
+            },
+            "html": {
+                'syntax': PACKAGES + '/HTML/HTML.tmLanguage',
+                'function': self.html
+            },
+            "json": {
+                'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage',
+                'function': self.json
+            },
+            "json (array of columns)": {
+                'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage',
+                'function': self.jsonArrayCols
+            },
+            "json (array of rows)": {
+                'syntax': PACKAGES + '/JavaScript/JavaScript.tmLanguage',
+                'function': self.jsonArrayRows
+            },
+            "mysql": {
+                'syntax': PACKAGES + '/SQL/SQL.tmLanguage',
+                'function': self.mysql
+            },
+            "python": {
+                'syntax': PACKAGES + '/Python/Python.tmLanguage',
+                'function': self.python
+            },
+            "xml": {
+                'syntax': PACKAGES + '/XML/XML.tmLanguage',
+                'function': self.xml
+            },
+            "xmlProperties": {
+                'syntax': PACKAGES + '/XML/XML.tmLanguage',
+                'function': self.xmlProperties
+            }
         }
 
         format = formats[kwargs['format']]
@@ -163,6 +196,48 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     # Converters
     # ==========
 
+    # Actionscript
+    def actionscript(self, datagrid):
+        output = "["
+
+        #begin render loops
+        for row in datagrid:
+            for item, header, item_type in row, self.headers.keys(), self.headers.values():
+
+                if item_type == str:
+                    row = '"' + (row or "") + '"'
+                if item is None:
+                    item = 'null'
+                output += "{" + header + ":" + item + ","
+
+            output = output[0:-1]
+
+            output += "}" + "," + self.newline
+
+        output = output[:-2]
+        output += "];"
+
+    # ASP / VBScript
+    def asp(self, datagrid):
+        #commentLine = "'"
+        #commentLineEnd = ""
+        output, r, indexer = "", 0, range(len(self.headers))
+
+        #begin render loop
+        for row in datagrid:
+            for c, item, item_type, header in indexer, row, self.header.keys(), self.headers.values():
+                if item_type == str:
+                    item = '"' + (item or "") + '"'
+                if item_type is None:
+                    item = 'null'
+
+                output += 'myArray(' + c + ',' + r + ') = ' + row + self.newline
+            r = r + 1
+
+        output = 'Dim myArray({0},{1}){3}'.format(r, c, self.newline + output)
+
+        return output
+
     # Helper for HTML converter
     def tr(self, string):
         return (self.indent * 2) + "<tr>" + self.newline + string + (self.indent * 2) + "</tr>" + self.newline
@@ -225,6 +300,55 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             rowArrays.append(itemlist)
 
         return json.dumps(rowArrays)
+
+    #MySQL
+    def mysql(self, datagrid):
+        table = 'CSVConverter'
+
+        # CREATE TABLE statement
+        create = 'CREATE TABLE ' + table + '(' + self.newline
+        create += self.indent + "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY," + self.newline
+
+        # INSERT TABLE Statement
+        insert = 'INSERT INTO ' + table + " " + self.newline + self.indent + "("
+
+        # VALUES list
+        values = "VALUES" + self.newline
+
+        # Loop through headers
+        for header, item_type in self.header.items():
+            if item_type == str:
+                out_type = 'VARCHAR(255)'
+            elif item_type == float:
+                out_type == 'FLOAT'
+            elif item_type == int:
+                out_type = 'INT'
+
+            insert += header + ","
+
+            create += self.indent + header + " " + out_type + "," + self.newline
+
+        create = create[:-2] + self.newline  # Remove the comma
+        create += ');' + self.newline
+
+        insert = insert[:-1] + ") " + self.newline
+
+        # loop through rows
+        for row in datagrid:
+            values += self.indent + "("
+
+            for item, item_type in row, self.headers.values():
+
+                if item_type == str:
+                    item = "'" + (item or "") + "'"
+
+                if item is None:
+                    item = "null"
+
+                values += item + ","
+            values = values[:-1] + '),'
+
+        return create + insert + values[:-1]
 
     # Python dict
     def python(self, datagrid):
