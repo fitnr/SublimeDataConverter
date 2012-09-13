@@ -50,7 +50,9 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             "json_columns": self.jsonArrayCols,
             "json_rows": self.jsonArrayRows,
             "mysql": self.mysql,
+            "php": self.php,
             "python": self.python,
+            "ruby": self.ruby,
             "xml": self.xml,
             "xml_properties": self.xmlProperties
         }
@@ -351,6 +353,36 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
         return create + insert + values[:-2] + ';'
 
+    # Helper loop for writing out types
+    # row is a dictionary returned from DictReader
+    def type_loop(self, row, form='"{0}": {1}', nulltxt='null'):
+        out = ''
+        for key, typ in zip(self.headers, self.types):
+            if typ == str:
+                txt = key, '"' + row[key] + '"'
+            elif row[key] is None:
+                txt = nulltxt
+            else:
+                txt = row[key]
+
+            out += form.format(key, txt)
+        return out
+
+    # PHP
+    def php(self, datagrid):
+        self.syntax = PACKAGES + '/PHP/PHP.tmLanguage'
+        #comment, comment_end = "//", ""
+        output = "$CSVConverter = array(" + self.newline
+
+        #begin render loop
+        for row in datagrid:
+            output += self.indent + "array("
+            output += self.type_loop(row, '"{0}"=>{1}, ')
+
+            output = output[:-2] + ")," + self.newline
+
+        return output[:-1] + self.newline + ");"
+
     # Python dict
     def python(self, datagrid):
         self.syntax = PACKAGES + '/Python/Python.tmLanguage'
@@ -358,6 +390,21 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         for row in datagrid:
             out.append(row)
         return repr(out)
+
+    # Ruby
+    def ruby(self, datagrid):
+        self.syntax = PACKAGES + '/Ruby/Ruby.tmLanguage'
+        #comment, comment_end = "#", ""
+        output, tableName = "[", "CSVConverter"
+
+        #begin render loop
+        for row in datagrid:
+            output += "{"
+            output += self.type_loop(row, '"{0}"=>{1}, ', nulltxt='nil')
+
+            output = output[:-1] + "}," + self.newline
+
+        return output[:-2] + "];"
 
     # XML Nodes
     def xml(self, datagrid):
