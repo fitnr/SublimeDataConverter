@@ -1,9 +1,5 @@
 """
-CSVConverter
-package for Sublime Text 2
-
-2012-09-13
-
+CSVConverter package for Sublime Text 2
 https://github.com/fitnr/SublimeCSVConverter
 
 Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
@@ -22,7 +18,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, **kwargs):
         try:
-            self.set_settings(kwargs)
+            self.get_settings(kwargs)
         except Exception as e:
             print "CSV Converter: error fetching settings. Did you specify a format?", e
             return
@@ -41,7 +37,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         if self.deselect_flag:
             self.deselect()
 
-    def set_settings(self, kwargs):
+    def get_settings(self, kwargs):
         formats = {
             "actionscript": self.actionscript,
             "asp": self.asp,
@@ -62,7 +58,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
         # This will be set later on, in the converter function
         self.syntax = None
 
-        self.settings = sublime.load_settings(PACKAGES + '/CSVConverter/csvconverter.sublime-settings')
+        self.settings = sublime.load_settings('csvconverter.sublime-settings')
 
         # Combine headers for xml formats
         no_space_formats = ['actionscript', 'mysql', 'xml', 'xml_properties']
@@ -87,7 +83,7 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
             self.indent = "\t"
 
         # Option to deselect after conversion.
-        self.deselect_flag = self.settings.get('deselect', True)
+        self.deselect_flag = self.settings.get('deselect_after', True)
 
     def import_csv(self, selection):
         sample = selection[:1024]
@@ -187,8 +183,9 @@ class CsvConvertCommand(sublime_plugin.TextCommand):
     # ==========
 
     # Helper loop for checking types as we write out a row.
+    # Strings are quoted, floats and ints aren't.
     # row is a dictionary returned from DictReader
-    def type_loop(self, row, form='"{0}": {1}', nulltxt='null'):
+    def type_loop(self, row, form, nulltxt='null'):
         out = ''
         for key, typ in zip(self.headers, self.types):
             if typ == str:

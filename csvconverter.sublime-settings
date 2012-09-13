@@ -11,5 +11,5 @@
 
   // If true: after converting, deselects and moves the pointer to the top. (default)
   // If false: leaves selection(s) in place
-  "deselect": true
+  "deselect_after": true
 }
