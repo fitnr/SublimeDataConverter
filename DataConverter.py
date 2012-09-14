@@ -216,7 +216,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def actionscript(self, datagrid):
         """Actionscript converter"""
-        #self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
+        self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
         output = "["
 
         #begin render loops
