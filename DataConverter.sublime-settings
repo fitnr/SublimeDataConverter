@@ -6,7 +6,7 @@
   // If false: Defaults to the OS line separator, which is "\r" in Windows.
   "line_sep": "\n",
 
-  // The converter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
+  // DataConverter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
   // This must be one character long. Use "\t" is for tab. 
   "delimiter": ",",
 
