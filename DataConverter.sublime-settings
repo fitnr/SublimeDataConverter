@@ -3,10 +3,11 @@
   // Set to false to always sniff for headers (sniffing isn't perfect!) 
   "assume_headers": true,
 
-  // If false: Defaults to the OS line separator
+  // If false: Defaults to the OS line separator, which is "\r" in Windows.
   "line_sep": "\n",
 
   // The converter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
+  // This must be one character long. Use "\t" is for tab. 
   "delimiter": ",",
 
   // If true: after converting, deselects and moves the pointer to the top.
