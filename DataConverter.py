@@ -107,7 +107,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # Replace spaces in the header names for some formats.
         if self.settings.get('mergeheaders', False) is True:
-            firstrow = [x.replace(' ', '_') for x in firstrow]
+            hj = self.settings.get('header_joiner', '_')
+            firstrow = [x.replace(' ', hj) for x in firstrow]
 
         if self.settings.get('assume_headers', True) or csv.Sniffer().has_header(sample):
             self.headers = firstrow
@@ -254,38 +255,34 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def tr(self, row):
         """Helper for HTML converter"""
-        return (self.indent * 2) + "<tr>" + self.newline + row + (self.indent * 2) + "</tr>" + self.newline
+        return "{i}{i}<tr>{n}" + row + "{i}{i}</tr>{n}"
 
     def html(self, datagrid):
         """HTML Table converter"""
         self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
-
-        nl, ind = self.newline, self.indent
-
-        table = "<table>" + nl
-        table += ind + "<thead>" + nl + "{0}</thead>" + nl
-        table += ind + "<tbody>" + nl + "{1}</tbody>" + nl
-        table += "</table>"
+        thead, tbody = "", ""
 
         # Render table head
-        thead = ""
         for header in self.headers:
-            thead += (ind * 3) + '<th>' + header + '</th>' + nl
+            thead += '{i}{i}<th>' + header + '</th>{n}'
+
         thead = self.tr(thead)
 
         # Render table rows
-        tbody = ""
         for row in datagrid:
             rowText = ""
 
             # Sadly, dictReader doesn't always preserve row order,
             # so we loop through the headers instead.
             for key in self.headers:
-                rowText += (ind * 3) + '<td>' + (row[key] or "") + '</td>' + nl
+                rowText += '{i}{i}{i}<td>' + (row[key] or "") + '</td>{n}'
 
             tbody += self.tr(rowText)
 
-        return table.format(thead, tbody)
+        table = "<table>{n}{i}<thead>{n}" + thead + "</thead>{n}"
+        table += "{i}<tbody>{n}" + tbody + "</tbody>{n}</table>"
+
+        return table.format(i=self.indent, n=self.newline)
 
     def json(self, datagrid):
         """JSON properties converter"""
@@ -328,11 +325,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         table = 'DataConverter'
 
         # CREATE TABLE statement
-        create = 'CREATE TABLE ' + table + '(' + self.newline
-        create += self.indent + "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY," + self.newline
+        create = 'CREATE TABLE ' + table + '({n}'
+        create += self.indent + "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,{n}"
 
         # INSERT TABLE Statement
-        insert = 'INSERT INTO ' + table + " " + self.newline + self.indent + "("
+        insert = 'INSERT INTO ' + table + " {n}{i}("
 
         # VALUES list
         values = "VALUES" + self.newline
@@ -348,12 +345,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             insert += header + ","
 
-            create += self.indent + header + " " + typ + "," + self.newline
+            create += '{i}' + header + " " + typ + "," + self.newline
 
-        create = create[:-2] + self.newline  # Remove the comma and newline
-        create += ');' + self.newline
+        create = create[:-2] + '{n}'  # Remove the comma and newline
+        create += ');{n}'
 
-        insert = insert[:-1] + ") " + self.newline
+        insert = insert[:-1] + ") {n}"
 
         # loop through rows
         for row in datagrid:
@@ -362,7 +359,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             values = values[:-1] + '),' + self.newline
 
-        return create + insert + values[:-2] + ';'
+        output = create + insert + values[:-2] + ';'
+        return output.format(i=self.indent, n=self.newline)
 
     def php(self, datagrid):
         """PHP converter"""
@@ -405,27 +403,25 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def xml(self, datagrid):
         """XML Nodes converter"""
         self.syntax = PACKAGES + '/XML/XML.tmLanguage'
-        output_text = '<?xml version="1.0" encoding="UTF-8"?>' + self.newline
-        output_text += "<rows>" + self.newline
+        output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
         #begin render loop
         for row in datagrid:
-            output_text += self.indent + "<row>" + self.newline
+            output_text += '{i}<row>{n}'
             for header in self.headers:
-                line = (self.indent * 2) + '<{1}>{0}</{1}>' + self.newline
                 item = row[header] or ""
-                output_text += line.format(item, header)
-            output_text += self.indent + "</row>" + self.newline
+                output_text += '{i}{i}<{1}>{0}</{1}>{n}'.format(item, header, i=self.indent, n=self.newline)
+
+            output_text += "{i}</row>{n}"
 
         output_text += "</rows>"
 
-        return output_text
+        return output_text.format(i=self.indent, n=self.newline)
 
     def xmlProperties(self, datagrid):
         """XML properties converter"""
         self.syntax = PACKAGES + '/XML/XML.tmLanguage'
-        output_text = '<?xml version="1.0" encoding="UTF-8"?>' + self.newline
-        output_text += "<rows>" + self.newline
+        output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
         #begin render loop
         for row in datagrid:
@@ -436,8 +432,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 row_list.append('{0}="{1}"'.format(header, item))
                 row_text = " ".join(row_list)
 
-            output_text += self.indent + "<row " + row_text + "></row>" + self.newline
+            output_text += "{i}<row " + row_text + "></row>{n}"
 
         output_text += "</rows>"
 
-        return output_text
+        return output_text.format(i=self.indent, n=self.newline)

@@ -10,6 +10,11 @@
   // This must be one character long. Use "\t" is for tab. 
   "delimiter": ",",
 
+  // For formats where keys can't have spaces, field names will be joined with this character.
+  // e.g. "First Name" => "First_Name"
+  // An empty string is OK
+  "header_joiner": "_",
+
   // If true: after converting, deselects and moves the pointer to the top.
   // If false: leaves selection(s) in place
   "deselect_after": false
