@@ -264,7 +264,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # Render table head
         for header in self.headers:
-            thead += '{i}{i}<th>' + header + '</th>{n}'
+            thead += '{i}{i}{i}<th>' + header + '</th>{n}'
 
         thead = self.tr(thead)
 
