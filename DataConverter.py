@@ -123,6 +123,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             reader.next()
             header_flag = True
 
+        # Having separate headers and types lists is a bit clumsy,
+        # but a dict wouldn't  keep track of the order of the fields.
+        # A slightly better way would be to use an OrderedDict, but this is more compatible with older Pythons.
         if self.settings.get('gettypes', True) is True:
             self.types = self.parse(reader, self.headers)
 
@@ -133,16 +136,17 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return reader
 
-    #Adapted from https://gist.github.com/1608283
     def deselect(self):
-        """Remove selection and place pointer at top of document."""
+        """Remove selection and place pointer at top of document (adapted from https://gist.github.com/1608283)."""
         top = self.view.sel()[0].a
         self.view.sel().clear()
         self.view.sel().add(sublime.Region(top, top))
 
-    # Parse data types
+    # data type parser
     # ==================
+
     def parse(self, reader, headers):
+        """ Return a list containing a best guess for the types of data in each column. """
         output_types, types, k = [], [], len(headers)
 
         for n in range(10):
@@ -152,13 +156,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 break
 
             tmp = []
-            for i, x in zip(row.values(), range(k)):
-                typ = self.get_type(i)
+
+            for h in headers:
+                typ = self.get_type(row[h])
                 tmp.append(typ)
+
             types.append(tmp)
 
         #rotate the array
-        types = zip(*types)[::-1]
+        types = zip(*types)
 
         for header, type_list in zip(headers, types):
             if str in type_list:
@@ -171,6 +177,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         return output_types
 
     def get_type(self, datum):
+        """ Select a data type from a (string) input"""
         try:
             int(datum)
             return int
@@ -186,10 +193,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     # Note that converters should assign a syntax file path to self.syntax.
 
-    # Helper loop for checking types as we write out a row.
-    # Strings are quoted, floats and ints aren't.
-    # row is a dictionary returned from DictReader
     def type_loop(self, row, form, nulltxt='null'):
+        """
+        Helper loop for checking types as we write out a row.
+        Strings get quoted, floats and ints don't.
+        row is a dictionary returned from DictReader
+        Returns a line of code in format form (e.g. "{0}=>{1}, ")
+
+        """
         out = ''
         for key, typ in zip(self.headers, self.types):
             if typ == str:
@@ -202,8 +213,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             out += form.format(key, txt)
         return out
 
-    # Actionscript
     def actionscript(self, datagrid):
+        """Actionscript converter"""
         #self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
         output = "["
 
@@ -241,12 +252,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return dim + output
 
-    # Helper for HTML converter
     def tr(self, row):
+        """Helper for HTML converter"""
         return (self.indent * 2) + "<tr>" + self.newline + row + (self.indent * 2) + "</tr>" + self.newline
 
-    # HTML Table
     def html(self, datagrid):
+        """HTML Table converter"""
         self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
 
         nl, ind = self.newline, self.indent
@@ -276,15 +287,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return table.format(thead, tbody)
 
-    # JSON properties
     def json(self, datagrid):
+        """JSON properties converter"""
         import json
         self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
 
         return json.dumps([row for row in datagrid])
 
-    # JSON Array of Columns
     def jsonArrayCols(self, datagrid):
+        """JSON Array of Columns converter"""
         import json
         self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
         colDict = {}
@@ -296,8 +307,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 colDict[key].append(item)
         return json.dumps(colDict)
 
-    # JSON Array of Rows
     def jsonArrayRows(self, datagrid):
+        """JSON Array of Rows converter"""
         import json
         self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
         rowArrays = []
@@ -310,8 +321,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return json.dumps(rowArrays)
 
-    #MySQL
     def mysql(self, datagrid):
+        """MySQL converter"""
         self.syntax = PACKAGES + '/SQL/SQL.tmLanguage'
 
         table = 'DataConverter'
@@ -353,8 +364,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return create + insert + values[:-2] + ';'
 
-    # PHP
     def php(self, datagrid):
+        """PHP converter"""
         self.syntax = PACKAGES + '/PHP/PHP.tmLanguage'
         #comment, comment_end = "//", ""
         output = "$DataConverter = array(" + self.newline
@@ -368,16 +379,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output[:-1] + self.newline + ");"
 
-    # Python dict
     def python(self, datagrid):
+        """Python dict converter"""
         self.syntax = PACKAGES + '/Python/Python.tmLanguage'
         out = []
         for row in datagrid:
             out.append(row)
         return repr(out)
 
-    # Ruby
     def ruby(self, datagrid):
+        """Ruby converter"""
         self.syntax = PACKAGES + '/Ruby/Ruby.tmLanguage'
         #comment, comment_end = "#", ""
         output, tableName = "[", "DataConverter"
@@ -391,8 +402,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output[:-2] + "];"
 
-    # XML Nodes
     def xml(self, datagrid):
+        """XML Nodes converter"""
         self.syntax = PACKAGES + '/XML/XML.tmLanguage'
         output_text = '<?xml version="1.0" encoding="UTF-8"?>' + self.newline
         output_text += "<rows>" + self.newline
@@ -410,8 +421,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output_text
 
-    # XML properties
     def xmlProperties(self, datagrid):
+        """XML properties converter"""
         self.syntax = PACKAGES + '/XML/XML.tmLanguage'
         output_text = '<?xml version="1.0" encoding="UTF-8"?>' + self.newline
         output_text += "<rows>" + self.newline
