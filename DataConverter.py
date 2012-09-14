@@ -34,12 +34,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.view.replace(edit, sel, converted)
             deselect_flag = False
 
-        self.view.set_syntax_file(self.syntax)
+        if self.syntax is not None:
+            self.view.set_syntax_file(self.syntax)
 
         if deselect_flag or self.settings.get('deselect_after'):
             self.deselect()
 
     def get_settings(self, kwargs):
+        # Adding a format? Check if it belongs in no_space_formats and no_type_formats.
         formats = {
             "actionscript": self.actionscript,
             "asp": self.asp,
@@ -64,14 +66,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # Combine headers for xml formats
         no_space_formats = ['actionscript', 'mysql', 'xml', 'xml_properties']
-        if kwargs['format'] in no_space_formats:
-            self.settings.set('mergeheaders', True)
+        mergeheaders = kwargs['format'] in no_space_formats
+        self.settings.set('mergeheaders', mergeheaders)
 
+        # Don't like having 'not' in the assignment, but it's less error prone to
+        # specify the formats that don't need a feature, rather than those that do.
         no_type_formats = ["html", "json", "json_columns", "json_rows", "python", "xml", "xml_properties"]
-        if kwargs['format'] in no_type_formats:
-            self.settings.set('gettypes', False)
-        else:
-            self.settings.set('gettypes', True)
+        get_types = kwargs['format'] in no_type_formats
+        self.settings.set('gettypes', not get_types)
 
         # New lines
         self.newline = self.settings.get('line_sep', "\n")
@@ -102,6 +104,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         firstrow = sample.splitlines()[0].split(dialect.delimiter)
 
+        print 'merge', self.settings.get('mergeheaders')
         # Replace spaces in the header names for some formats.
         if self.settings.get('mergeheaders', False) is True:
             firstrow = [x.replace(' ', '_') for x in firstrow]
@@ -181,6 +184,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     # Converters
     # ==========
 
+    # Note that converters should assign a syntax file path to self.syntax.
+
     # Helper loop for checking types as we write out a row.
     # Strings are quoted, floats and ints aren't.
     # row is a dictionary returned from DictReader
@@ -199,7 +204,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     # Actionscript
     def actionscript(self, datagrid):
-        self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
+        #self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
         output = "["
 
         #begin render loops
@@ -209,7 +214,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             output = output[0:-1] + "}" + "," + self.newline
 
-        return  output[:-2] + "];"
+        return output[:-2] + "];"
 
     # ASP / VBScript
     def asp(self, datagrid):
@@ -334,7 +339,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             create += self.indent + header + " " + typ + "," + self.newline
 
-        create = create[:-2] + self.newline  # Remove the comma
+        create = create[:-2] + self.newline  # Remove the comma and newline
         create += ');' + self.newline
 
         insert = insert[:-1] + ") " + self.newline
@@ -382,7 +387,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             output += "{"
             output += self.type_loop(row, '"{0}"=>{1}, ', nulltxt='nil')
 
-            output = output[:-1] + "}," + self.newline
+            output = output[:-2] + "}," + self.newline
 
         return output[:-2] + "];"
 
