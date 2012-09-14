@@ -91,12 +91,13 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         try:
             dialect = csv.Sniffer().sniff(sample)
         except Exception as e:
+            delimiter = self.settings.get('delimiter', ',')
+            delimiter = bytes(delimiter[0])  # dialect definition takes a 1-char bytestring
             print "DataConverter had trouble sniffing:", e
-            delimiter = self.settings.get('delimiter', ",")
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
             except Exception as e:
-                print delimiter + ":", e
+                print e, ": '" + delimiter + "'"
 
             dialect = csv.get_dialect('barebones')
 
@@ -104,7 +105,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         firstrow = sample.splitlines()[0].split(dialect.delimiter)
 
-        print 'merge', self.settings.get('mergeheaders')
         # Replace spaces in the header names for some formats.
         if self.settings.get('mergeheaders', False) is True:
             firstrow = [x.replace(' ', '_') for x in firstrow]
@@ -126,7 +126,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('gettypes', True) is True:
             self.types = self.parse(reader, self.headers)
 
-            # Reset what you just broke
+            # Fetching types messes up the pointer, reset it.
             csvIO.seek(0)
             if header_flag:
                 reader.next()
