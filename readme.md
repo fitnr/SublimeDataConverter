@@ -7,7 +7,33 @@ It converts comma-separated or tab-separated data into many formats. Actually, j
 
 You'll find commands look like __DataConverter: to *foo*__ in the Command Palette. DataConverter will convert a selection or multiple selections. If nothing is selected, the entire document is converted.
 
-Formats supported: 
+### Examples
+
+Turn this:
+
+    NAME,VALUE,FRUIT,DATE
+    Steve,10,Apple,"Sep. 12, 2012"
+    Todd,11,Blueberry,"Sep. 13, 2012"
+    Bob,12,Orange,"Sep. 14, 2012"
+
+into this (Ruby):
+
+```ruby
+[{"NAME"=>"Steve", "VALUE"=>10, "FRUIT"=>"Apple", "DATE"=>"Sep. 12, 2012"},
+{"NAME"=>"Todd", "VALUE"=>11, "FRUIT"=>"Blueberry", "DATE"=>"Sep. 13, 2012"},
+{"NAME"=>"Bob", "VALUE"=>12, "FRUIT"=>"Orange", "DATE"=>"Sep. 14, 2012"}];
+```
+
+or this (JSON):
+
+```javascript
+[{"DATE": "Sep. 12, 2012", "FRUIT": "Apple", "NAME": "Steve", "VALUE": "10"},
+{"DATE": "Sep. 13, 2012", "FRUIT": "Blueberry", "NAME": "Todd", "VALUE": "11"},
+{"DATE": "Sep. 14, 2012", "FRUIT": "Orange", "NAME": "Bob", "VALUE": "12"}]
+```
+
+### Formats supported
+
 * ActionScript
 * ASP
 * HTML tables
@@ -20,31 +46,6 @@ Formats supported:
 * Ruby
 * XML
 * XML (property list)
- 
-### Example
-
-Turn this:
-
-    NAME,VALUE,FRUIT,DATE
-    Steve,10,Apple,"Sep. 12, 2012"
-    Todd,11,Blueberry,"Sep. 13, 2012"
-    Bob,12,Orange,"Sep. 14, 2012"
-
-Into this (Ruby):
-
-```ruby
-[{"NAME"=>Steve, "VALUE"=>"10", "FRUIT"=>"Apple", "DATE"=>"Sep. 12, 2012"},
-{"NAME"=>Todd, "VALUE"=>"11", "FRUIT"=>"Blueberry", "DATE"=>"Sep. 13, 2012"},
-{"NAME"=>Bob, "VALUE"=>"12", "FRUIT"=>"Orange", "DATE"=>"Sep. 14, 2012"}];
-```
-
-or this (JSON):
-
-```javascript
-[{"DATE": "Sep. 12, 2012", "FRUIT": "Apple", "NAME": "Steve", "VALUE": "10"},
-{"DATE": "Sep. 13, 2012", "FRUIT": "Blueberry", "NAME": "Todd", "VALUE": "11"},
-{"DATE": "Sep. 14, 2012", "FRUIT": "Orange", "NAME": "Bob", "VALUE": "12"}]
-```
 
 ### Configuration
 Check out `DataConverter.sublime-settings` for a documented list of options.
@@ -61,3 +62,7 @@ Clone the repository into your Sublime Text 2 packages directory:
 
 ### Without Package Control or Git
 [Go to the download section](http://github.com/fitnr/SublimeDataConverter/downloads) and download the package. Unzip it, rename the folder "DataConverter" and move it into your Sublime Text 2 packages directory (*Preferences > Browse Packages* in the menu).
+
+## Problems?
+
+[Submit an issue](https://github.com/fitnr/SublimeDataConverter/issues).
