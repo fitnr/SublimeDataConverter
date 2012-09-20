@@ -46,6 +46,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "actionscript": self.actionscript,
             "asp": self.asp,
             "html": self.html,
+            "javascript": self.javascript,
             "json": self.json,
             "json_columns": self.jsonArrayCols,
             "json_rows": self.jsonArrayRows,
@@ -283,6 +284,18 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         table += "{i}<tbody>{n}" + tbody + "</tbody>{n}</table>"
 
         return table.format(i=self.indent, n=self.newline)
+
+    def javascript(self, datagrid):
+        """JavaScript object converter"""
+        self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
+        output = '['
+
+        #begin render loop
+        for row in datagrid:
+            output += "{" + self.type_loop(row, '{0}: {1}, ')
+            output = output[:-2] + "}," + self.newline
+
+        return output[:-2] + '];'
 
     def json(self, datagrid):
         """JSON properties converter"""
