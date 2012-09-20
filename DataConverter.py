@@ -288,14 +288,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def javascript(self, datagrid):
         """JavaScript object converter"""
         self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
-        output = '['
+        output = 'var dataConverter = [' + self.newline
 
         #begin render loop
         for row in datagrid:
-            output += "{" + self.type_loop(row, '{0}: {1}, ')
+            output += self.indent + "{" + self.type_loop(row, '{0}: {1}, ')
             output = output[:-2] + "}," + self.newline
 
-        return output[:-2] + '];'
+        return output[:-2] + self.newline + '];'
 
     def json(self, datagrid):
         """JSON properties converter"""
