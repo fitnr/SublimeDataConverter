@@ -110,10 +110,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # Replace spaces in the header names for some formats.
         if self.settings.get('mergeheaders', False) is True:
-            hj = self.settings.get('header_joiner', '_')
+            hj = self.settings.get('header_joiner', '')
             firstrow = [x.replace(' ', hj) for x in firstrow]
 
-        if self.settings.get('assume_headers', True) or csv.Sniffer().has_header(sample):
+        if self.settings.get('assume_headers', None) or csv.Sniffer().has_header(sample):
             self.headers = firstrow
         else:
             self.headers = ["val" + str(x) for x in range(len(firstrow))]
