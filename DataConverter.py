@@ -76,9 +76,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.settings.set('typed', typed)
 
         # New lines
-        self.newline = self.settings.get('line_sep', os.line_sep)
+        self.newline = self.settings.get('line_sep', False)
         if self.newline == False:
-            self.newline = os.line_sep
+            self.newline = os.linesep
 
         # Indentation
         if (self.view.settings().get('translate_tabs_to_spaces')):
