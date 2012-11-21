@@ -105,6 +105,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         firstrow = sample.splitlines()[0].split(dialect.delimiter)
 
+        if self.settings.get('strip_quotes', None):
+            firstrow = [j.strip('"\'') for j in firstrow]
+
         # Replace spaces in the header names for some formats.
         if self.settings.get('mergeheaders', False) is True:
             hj = self.settings.get('header_joiner', '_')
