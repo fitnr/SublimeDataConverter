@@ -202,10 +202,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """
         out = ''
         for key, typ in zip(self.headers, self.types):
-            if typ == str:
-                txt = '"' + row[key] + '"'
-            elif row[key] is None:
+            if row[key] is None:
                 txt = nulltxt
+            elif typ == str:
+                txt = '"' + row[key] + '"'
             else:
                 txt = row[key]
 
@@ -353,7 +353,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         # loop through rows
         for row in datagrid:
             values += self.indent + "("
-            values += self.type_loop(row, form='{1},')
+            values += self.type_loop(row, form='{1},', nulltxt='NULL')
 
             values = values[:-1] + '),' + self.newline
 
