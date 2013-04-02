@@ -96,6 +96,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 user_dialects = self.settings.get('dialects')
 
                 try:
+                    try:
+                        user_dialects[dialectname]["delimiter"] = bytes(user_dialects[dialectname]["delimiter"])
+                    try:
+                        user_dialects[dialectname]["quotechar"] = bytes(user_dialects[dialectname]["quotechar"])
                     csv.register_dialect(dialectname, **user_dialects[dialectname])
                     self.dialect = csv.get_dialect(dialectname)
                 except Exception:
