@@ -41,7 +41,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.deselect()
 
     def get_settings(self, kwargs):
-        # Adding a format? Check if it belongs in no_space_formats and no_type_formats.
+        # Adding a format? Check if it belongs in no_space_formats and untyped_formats.
         formats = {
             "actionscript": self.actionscript,
             "asp": self.asp,
@@ -70,16 +70,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         mergeheaders = kwargs['format'] in no_space_formats
         self.settings.set('mergeheaders', mergeheaders)
 
-        # Don't like having 'not' in the assignment, but it's less error prone to
-        # specify the formats that don't need a feature, rather than those that do.
-        no_type_formats = ["html", "json", "json_columns", "json_rows", "python", "xml", "xml_properties"]
-        get_types = kwargs['format'] in no_type_formats
-        self.settings.set('gettypes', not get_types)
+        untyped_formats = ["html", "json", "json_columns", "json_rows", "python", "xml", "xml_properties"]
+        # Don't like having 'not' in this expression, but it makes more sense to use 'typed' from here on out
+        # And it's less error prone to use the (smaller) list of untyped formats
+        typed = kwargs['format'] not in untyped_formats
+        self.settings.set('typed', typed)
 
         # New lines
-        self.newline = self.settings.get('line_sep', "\n")
+        self.newline = self.settings.get('line_sep', False)
         if self.newline == False:
-            self.newline = os.line_sep
+            self.newline = os.linesep
 
         # Indentation
         if (self.view.settings().get('translate_tabs_to_spaces')):
@@ -106,12 +106,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         firstrow = sample.splitlines()[0].split(dialect.delimiter)
 
+        if self.settings.get('strip_quotes', None):
+            firstrow = [j.strip('"\'') for j in firstrow]
+
         # Replace spaces in the header names for some formats.
         if self.settings.get('mergeheaders', False) is True:
-            hj = self.settings.get('header_joiner', '_')
+            hj = self.settings.get('header_joiner', '')
             firstrow = [x.replace(' ', hj) for x in firstrow]
 
-        if self.settings.get('assume_headers', True) or csv.Sniffer().has_header(sample):
+        if self.settings.get('assume_headers', None) or csv.Sniffer().has_header(sample):
             self.headers = firstrow
         else:
             self.headers = ["val" + str(x) for x in range(len(firstrow))]
@@ -126,13 +129,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             header_flag = True
 
         # Having separate headers and types lists is a bit clumsy,
-        # but a dict wouldn't  keep track of the order of the fields.
+        # but a dict wouldn't keep track of the order of the fields.
         # A slightly better way would be to use an OrderedDict, but this is more compatible with older Pythons.
-        if self.settings.get('gettypes', True) is True:
+        if self.settings.get('typed', True) is True:
             self.types = self.parse(reader, self.headers)
-
-            # Fetching types messes up the pointer, reset it.
-            csvIO.seek(0)
+            csvIO.seek(0)  # Fetching types messes up the pointer, reset it.
             if header_flag:
                 reader.next()
 
@@ -205,10 +206,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """
         out = ''
         for key, typ in zip(self.headers, self.types):
-            if typ == str:
-                txt = '"' + row[key] + '"'
-            elif row[key] is None:
+            if row[key] is None:
                 txt = nulltxt
+            elif typ == str:
+                txt = '"' + row[key] + '"'
             else:
                 txt = row[key]
 
@@ -368,7 +369,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         # loop through rows
         for row in datagrid:
             values += self.indent + "("
-            values += self.type_loop(row, form='{1},')
+            values += self.type_loop(row, form='{1},', nulltxt='NULL')
 
             values = values[:-1] + '),' + self.newline
 
