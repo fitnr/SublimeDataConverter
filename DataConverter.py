@@ -66,7 +66,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.settings = sublime.load_settings('DataConverter.sublime-settings')
 
         # Combine headers for xml formats
-        no_space_formats = ['actionscript', 'mysql', 'xml', 'xml_properties']
+        no_space_formats = ['actionscript', 'javascript', 'mysql', 'xml', 'xml_properties']
         mergeheaders = kwargs['format'] in no_space_formats
         self.settings.set('mergeheaders', mergeheaders)
 
