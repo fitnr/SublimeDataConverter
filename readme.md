@@ -40,6 +40,7 @@ or this (JSON):
 * JSON
 * JSON (array of columns)
 * JSON (array of rows)
+* Javascript object
 * MySQL
 * PHP
 * Python
