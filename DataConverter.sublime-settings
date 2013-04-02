@@ -6,6 +6,19 @@
   // If false: Defaults to the OS line separator, which is "\r" in Windows.
   "line_sep": "\n",
 
+  // Check the python docs for a description of how to define a dialect
+  // http://docs.python.org/2/library/csv.html#csv-fmt-params
+  "dialects": {
+    "example": {
+      "delimiter": ",",
+      "quotechar": "\""
+    }
+  },
+
+  // Could be one of the dialects defined above, or one defined in the csv module (e.g. 'excel', 'excel_tab'.
+  // When false or blank, DataConverter tries to detect the dialect, which isn't 100% reliable.
+  // "use_dialect": "example"
+
   // DataConverter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
   // This must be one character long. Use "\t" is for tab. 
   "delimiter": ",",

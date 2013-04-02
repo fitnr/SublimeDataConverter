@@ -87,23 +87,49 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         else:
             self.indent = "\t"
 
-    def import_csv(self, selection):
-        sample = selection[:1024]
+        # Dialect
+        if (self.settings.get('use_dialect')):
+            dialectname = self.settings.get('use_dialect')
+            try:
+                self.dialect = csv.get_dialect(dialectname)
+            except Exception:
+                user_dialects = self.settings.get('dialects')
+
+                try:
+                    csv.register_dialect(dialectname, **user_dialects[dialectname])
+                    self.dialect = csv.get_dialect(dialectname)
+                except Exception:
+                    self.dialect = None
+                    print 'DataConverter could not find', dialectname, ". Will try to sniff for a dialect"
+        else:
+            self.dialect = None
+
+    def sniff(self, sample):
         try:
             dialect = csv.Sniffer().sniff(sample)
+            print dialect.delimiter
         except Exception as e:
-            delimiter = self.settings.get('delimiter', ',')
-            delimiter = bytes(delimiter[0])  # dialect definition takes a 1-char bytestring
+            delimiter = self.settings.get('delimiter', ',').pop()
+            delimiter = bytes(delimiter)  # dialect definition takes a 1-char bytestring
             print "DataConverter had trouble sniffing:", e
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
-            except Exception as e:
-                print e, ": '" + delimiter + "'"
+                dialect = csv.get_dialect('barebones')
 
-            dialect = csv.get_dialect('barebones')
+            except Exception as e:
+                dialect = csv.get_dialect('excel')
+
+        return dialect
+
+    def import_csv(self, selection):
+        sample = selection[:1024]
+
+        if self.dialect:
+            dialect = self.dialect
+        else:
+            dialect = self.sniff(sample)
 
         csvIO = StringIO.StringIO(selection)
-
         firstrow = sample.splitlines()[0].split(dialect.delimiter)
 
         # Replace spaces in the header names for some formats.
