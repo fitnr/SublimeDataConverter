@@ -11,5 +11,6 @@
   { "caption": "DataConverter: to Python", "command": "data_converter", "args": {"format": "python" } },
   { "caption": "DataConverter: to Ruby", "command": "data_converter", "args": {"format": "ruby" } },
   { "caption": "DataConverter: to XML Nodes", "command": "data_converter", "args": {"format": "xml" } },
-  { "caption": "DataConverter: to XML Properties", "command": "data_converter", "args": {"format": "xml_properties" } }
+  { "caption": "DataConverter: to XML Properties", "command": "data_converter", "args": {"format": "xml_properties" } },
+  { "caption": "DataConverter: to textTable", "command": "data_converter", "args": {"format": "textTable" } }
 ]

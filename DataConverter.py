@@ -55,6 +55,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "python": self.python,
             "ruby": self.ruby,
             "xml": self.xml,
+            "textTable": self.textTable,
             "xml_properties": self.xmlProperties
         }
 
@@ -484,5 +485,57 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             output_text += "{i}<row " + row_text + "></row>{n}"
 
         output_text += "</rows>"
+
+        return output_text.format(i=self.indent, n=self.newline)
+
+    def textTable(self, datagrid):
+        """text table converter"""
+        self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
+
+        output_text = ''
+        line = ''
+
+        _datagrid = []
+        for row in datagrid:
+            _data = {}
+            for header in self.headers:
+                _data[header] = row[header]
+            _datagrid.append(_data)
+
+        field_length = {}
+
+        # for header in self.headers:
+        #     field_length[header] = max(7, (((len(header) + 1) / 4 + 1) * 4 - 1))
+        #     line += '+' + "-" * field_length[header]
+        for header in self.headers:
+            max_length = len(header) + 1
+            # line += '+' + "-----------"
+            for row in _datagrid:
+                max_length = max(max_length, len(row[header]))
+                print ("{0}{1}{2}".format(row[header], ' = ', max_length))
+            field_length[header] = max(7, (((max_length + 1) / 4 + 1) * 4 - 1))
+            line += '+' + "-" * field_length[header]
+
+        line += '+\n'
+        output_text = line
+
+        output_text += '|'
+        for header in self.headers:
+            output_text += " {0}|".format((header + ' ' * field_length[header])[0:field_length[header] - 1])
+        output_text += '\n'
+        output_text += line
+
+        #begin render loop
+        for row in _datagrid:
+            row_list = []
+
+            for header in self.headers:
+                item = row[header] or ""
+                row_list.append("{0}\t".format((item + ' ' * field_length[header])[0:field_length[header] - 1]))
+                row_text = '|' + "|".join(row_list) + '|'
+
+            output_text += row_text + "{n}"
+
+        output_text += line + "\n"
 
         return output_text.format(i=self.indent, n=self.newline)
