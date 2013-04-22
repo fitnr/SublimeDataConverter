@@ -491,51 +491,34 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def text_table(self, datagrid):
         """text table converter"""
         self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
+        output_text, divline, field_length, _datagrid = '|', '+', {}, []
 
-        output_text = ''
-        line = ''
+        _datagrid = [row for row in datagrid]
 
-        _datagrid = []
-        for row in datagrid:
-            _data = {}
-            for header in self.headers:
-                _data[header] = row[header]
-            _datagrid.append(_data)
-
-        field_length = {}
-
-        # for header in self.headers:
-        #     field_length[header] = max(7, (((len(header) + 1) / 4 + 1) * 4 - 1))
-        #     line += '+' + "-" * field_length[header]
         for header in self.headers:
-            max_length = len(header) + 1
-            # line += '+' + "-----------"
+            length = len(header) + 1  # Add 1 to account for end-padding
+
             for row in _datagrid:
-                max_length = max(max_length, len(row[header]))
-                print ("{0}{1}{2}".format(row[header], ' = ', max_length))
-            field_length[header] = max(7, (((max_length + 1) / 4 + 1) * 4 - 1))
-            line += '+' + "-" * field_length[header]
+                try:
+                    length = max(length, len(row[header]) + 1)
+                except:
+                    pass
+            field_length[header] = length
+            divline += '-' * (field_length[header] + 1) + '+'
+            output_text += ' ' + header + ' ' * (field_length[header] - len(header)) + '|'
 
-        line += '+\n'
-        output_text = line
-
-        output_text += '|'
-        for header in self.headers:
-            output_text += " {0}|".format((header + ' ' * field_length[header])[0:field_length[header] - 1])
-        output_text += '\n'
-        output_text += line
+        divline += '{n}'
+        output_text = '{0}{1}{{n}}{0}'.format(divline, output_text)
 
         #begin render loop
         for row in _datagrid:
-            row_list = []
+            row_text = '|'
 
             for header in self.headers:
                 item = row[header] or ""
-                row_list.append("{0}\t".format((item + ' ' * field_length[header])[0:field_length[header] - 1]))
-                row_text = '|' + "|".join(row_list) + '|'
+                row_text += ' ' + item + ' ' * (field_length[header] - len(item)) + '|'
 
             output_text += row_text + "{n}"
 
-        output_text += line + "\n"
-
-        return output_text.format(i=self.indent, n=self.newline)
+        output_text += divline
+        return output_text.format(n=self.newline)
