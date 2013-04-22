@@ -55,7 +55,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "python": self.python,
             "ruby": self.ruby,
             "xml": self.xml,
-            "textTable": self.textTable,
+            "text_table": self.text_table,
             "xml_properties": self.xmlProperties
         }
 
@@ -488,7 +488,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output_text.format(i=self.indent, n=self.newline)
 
-    def textTable(self, datagrid):
+    def text_table(self, datagrid):
         """text table converter"""
         self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
 
