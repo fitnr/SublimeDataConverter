@@ -55,6 +55,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "python": self.python,
             "ruby": self.ruby,
             "xml": self.xml,
+            "textTable": self.textTable,
             "xml_properties": self.xmlProperties
         }
 
@@ -484,5 +485,25 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             output_text += "{i}<row " + row_text + "></row>{n}"
 
         output_text += "</rows>"
+
+        return output_text.format(i=self.indent, n=self.newline)
+
+    def textTable(self, datagrid):
+        """text table converter"""
+        self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
+        output_text = '---------------------------------------------------\n'
+
+        #begin render loop
+        for row in datagrid:
+            row_list = []
+
+            for header in self.headers:
+                item = row[header] or ""
+                row_list.append('{0}'.format(item))
+                row_text = "|".join(row_list)
+
+            output_text += "{i}" + row_text + "{n}"
+
+        output_text += "--------------------------------------------"
 
         return output_text.format(i=self.indent, n=self.newline)
