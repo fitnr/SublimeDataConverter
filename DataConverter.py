@@ -503,7 +503,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def text_table(self, datagrid):
         """text table converter"""
-        self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
+        self.syntax = PACKAGES + '/Text/Plain text.tmLanguage'
         output_text, divline, field_length, _datagrid = '|', '+', {}, []
 
         _datagrid = [row for row in datagrid]
