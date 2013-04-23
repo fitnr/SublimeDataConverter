@@ -170,11 +170,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         return headers
 
     def import_csv(self, selection):
-        csvIO = StringIO.StringIO(selection)
-
         # Remove header from entries that came with one.
         if self.settings.get('has_header', False) is True:
             selection = selection[selection.find(self.newline):]
+
+        csvIO = StringIO.StringIO(selection)
 
         reader = UnicodeDictReader(
             csvIO,
