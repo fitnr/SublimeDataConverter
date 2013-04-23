@@ -14,6 +14,13 @@ import StringIO
 PACKAGES = sublime.packages_path()
 
 
+def UnicodeDictReader(utf8_data, **kwargs):
+    '''http://stackoverflow.com/questions/5004687/python-csv-dictreader-with-utf-8-data'''
+    csv_reader = csv.DictReader(utf8_data, **kwargs)
+    for row in csv_reader:
+        yield dict([(key, unicode(value, 'utf-8')) for key, value in row.iteritems()])
+
+
 class DataConverterCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, **kwargs):
@@ -28,7 +35,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             deselect_flag = True
 
         for sel in self.view.sel():
-            selection = self.view.substr(sel).encode('utf-8')
+            selection = self.view.substr(sel)
+            sample = selection[:1024]
+            self.dialect = self.sniff(sample)
+            self.headers = self.assign_headers(sample)
+
             data = self.import_csv(selection)
             converted = self.converter(data)
             self.view.replace(edit, sel, converted)
@@ -115,54 +126,52 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.dialect = None
 
     def sniff(self, sample):
+        if self.dialect:
+            return self.dialect
+
         try:
             dialect = csv.Sniffer().sniff(sample)
             print dialect.delimiter
+            return dialect
         except Exception as e:
+            print "DataConverter had trouble sniffing:", e
             delimiter = self.settings.get('delimiter', ',').pop()
             delimiter = bytes(delimiter)  # dialect definition takes a 1-char bytestring
-            print "DataConverter had trouble sniffing:", e
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
-                dialect = csv.get_dialect('barebones')
+                return csv.get_dialect('barebones')
 
             except Exception as e:
-                dialect = csv.get_dialect('excel')
+                return csv.get_dialect('excel')
 
-        return dialect
-
-    def import_csv(self, selection):
-        sample = selection[:1024]
-
-        if self.dialect:
-            dialect = self.dialect
-        else:
-            dialect = self.sniff(sample)
-
-        csvIO = StringIO.StringIO(selection)
-        firstrow = sample.splitlines()[0].split(dialect.delimiter)
-
-        if self.settings.get('strip_quotes', None):
-            firstrow = [j.strip('"\'') for j in firstrow]
-
-        # Replace spaces in the header names for some formats.
-        if self.settings.get('mergeheaders', False) is True:
-            hj = self.settings.get('header_joiner', '')
-            firstrow = [x.replace(' ', hj) for x in firstrow]
+    def assign_headers(self, sample):
+        '''Mess with headers, merging and stripping as needed.'''
+        firstrow = sample.splitlines().pop(0).split(self.dialect.delimiter)
 
         if self.settings.get('assume_headers', None) or csv.Sniffer().has_header(sample):
-            self.headers = firstrow
-        else:
-            self.headers = ["val" + str(x) for x in range(len(firstrow))]
+            headers = firstrow
+            self.settings.set('has_header', True)
 
-        reader = csv.DictReader(
+            # Replace spaces in the header names for some formats.
+            if self.settings.get('mergeheaders', False) is True:
+                hj = self.settings.get('header_joiner', '')
+                headers = [x.replace(' ', hj) for x in headers]
+
+            if self.settings.get('strip_quotes', None):
+                headers = [j.strip('"\'') for j in headers]
+
+        else:
+            headers = ["val" + str(x) for x in range(len(firstrow))]
+
+        return headers
+
+    def import_csv(self, selection):
+        csvIO = StringIO.StringIO(selection)
+
+        reader = UnicodeDictReader(
             csvIO,
             fieldnames=self.headers,
-            dialect=dialect)
-
-        if self.headers == firstrow:
-            reader.next()
-            header_flag = True
+            dialect=self.dialect)
 
         # Having separate headers and types lists is a bit clumsy,
         # but a dict wouldn't keep track of the order of the fields.
@@ -170,7 +179,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('typed', True) is True:
             self.types = self.parse(reader, self.headers)
             csvIO.seek(0)  # Fetching types messes up the pointer, reset it.
-            if header_flag:
+            if self.settings.get('has_header', False):
                 reader.next()
 
         return reader
