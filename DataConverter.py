@@ -135,7 +135,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         try:
             dialect = csv.Sniffer().sniff(sample)
-            print dialect.delimiter
+            print 'DataConverter is using this delimiter:', dialect.delimiter
             return dialect
         except Exception as e:
             print "DataConverter had trouble sniffing:", e
@@ -182,10 +182,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             dialect=self.dialect)
 
         if self.settings.get('typed', False) is True:
-            self.types = self.parse(reader, self.headers)
-            csvIO.seek(0)  # Fetching types messes up the pointer, reset it.
-            if self.settings.get('has_header', False):
-                reader.next()
+            typer = UnicodeDictReader(csvIO, fieldnames=self.headers, dialect=self.dialect)
+            self.types = self.parse(typer, self.headers)
 
         return reader
 
@@ -227,6 +225,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             else:
                 output_types.append(int)
 
+        print 'DataConverter found these output types:', output_types
         return output_types
 
     def get_type(self, datum):
