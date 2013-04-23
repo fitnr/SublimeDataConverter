@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 DataConverter package for Sublime Text 2
 https://github.com/fitnr/SublimeDataConverter
@@ -15,10 +16,12 @@ PACKAGES = sublime.packages_path()
 
 
 def UnicodeDictReader(utf8_data, **kwargs):
-    '''http://stackoverflow.com/questions/5004687/python-csv-dictreader-with-utf-8-data'''
+    '''http://stackoverflow.com/questions/5478659/python-module-like-csv-dictreader-with-full-utf8-support'''
     csv_reader = csv.DictReader(utf8_data, **kwargs)
+    keymap = dict((k, k.decode('utf-8')) for k in csv_reader.fieldnames)
+
     for row in csv_reader:
-        yield dict([(key, unicode(value, 'utf-8')) for key, value in row.iteritems()])
+        yield dict((keymap[k], v.decode('utf-8')) for k, v in row.iteritems())
 
 
 class DataConverterCommand(sublime_plugin.TextCommand):
@@ -253,7 +256,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         Returns a line of code in format form (e.g. "{0}=>{1}, ")
 
         """
-        out = ''
+        out = u''
         for key, typ in zip(self.headers, self.types):
             if row[key] is None:
                 txt = nulltxt
@@ -449,12 +452,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """Ruby converter"""
         self.syntax = PACKAGES + '/Ruby/Ruby.tmLanguage'
         #comment, comment_end = "#", ""
-        output, tableName = "[", "DataConverter"
+        output, tableName = u"[", "DataConverter"
 
         #begin render loop
         for row in datagrid:
             output += "{"
-            output += self.type_loop(row, '"{0}"=>{1}, ', nulltxt='nil')
+            output += self.type_loop(row, u'"{0}"=>{1}, ', nulltxt='nil')
 
             output = output[:-2] + "}," + self.newline
 
