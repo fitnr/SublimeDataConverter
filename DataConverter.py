@@ -142,7 +142,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             return dialect
         except Exception as e:
             print "DataConverter had trouble sniffing:", e
-            delimiter = self.settings.get('delimiter', ',').pop()
+            delimiter = self.settings.get('delimiter', ',')
             delimiter = bytes(delimiter)  # dialect definition takes a 1-char bytestring
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
