@@ -38,6 +38,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             selection = self.view.substr(sel)
             sample = selection[:1024]
             self.dialect = self.sniff(sample)
+            # Having separate headers and types lists is a bit clumsy,
+            # but a dict wouldn't keep track of the order of the fields.
+            # A slightly better way would be to use an OrderedDict, but this is more compatible with older Pythons.
+
             self.headers = self.assign_headers(sample)
 
             data = self.import_csv(selection)
@@ -168,15 +172,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def import_csv(self, selection):
         csvIO = StringIO.StringIO(selection)
 
+        # Remove header from entries that came with one.
+        if self.settings.get('has_header', False) is True:
+            selection = selection[selection.find(self.newline):]
+
         reader = UnicodeDictReader(
             csvIO,
             fieldnames=self.headers,
             dialect=self.dialect)
 
-        # Having separate headers and types lists is a bit clumsy,
-        # but a dict wouldn't keep track of the order of the fields.
-        # A slightly better way would be to use an OrderedDict, but this is more compatible with older Pythons.
-        if self.settings.get('typed', True) is True:
+        if self.settings.get('typed', False) is True:
             self.types = self.parse(reader, self.headers)
             csvIO.seek(0)  # Fetching types messes up the pointer, reset it.
             if self.settings.get('has_header', False):
