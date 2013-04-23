@@ -443,10 +443,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def python(self, datagrid):
         """Python dict converter"""
         self.syntax = PACKAGES + '/Python/Python.tmLanguage'
-        out = []
-        for row in datagrid:
-            out.append(row)
-        return repr(out)
+        return repr([row for row in datagrid])
 
     def ruby(self, datagrid):
         """Ruby converter"""
