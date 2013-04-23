@@ -198,7 +198,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def parse(self, reader, headers):
         """ Return a list containing a best guess for the types of data in each column. """
-        output_types, types, k = [], [], len(headers)
+        output_types, types = [], []
 
         for n in range(10):
             try:
