@@ -82,7 +82,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         mergeheaders = kwargs['format'] in no_space_formats
         self.settings.set('mergeheaders', mergeheaders)
 
-        untyped_formats = ["html", "json", "json_columns", "json_rows", "python", "xml", "xml_properties"]
+        untyped_formats = ["html", "json", "json_columns", "json_rows", "python", "text_table", "xml", "xml_properties"]
         # Don't like having 'not' in this expression, but it makes more sense to use 'typed' from here on out
         # And it's less error prone to use the (smaller) list of untyped formats
         typed = kwargs['format'] not in untyped_formats
@@ -90,7 +90,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # New lines
         self.newline = self.settings.get('line_sep', False)
-        if self.newline == False:
+        if self.newline is False:
             self.newline = os.linesep
 
         # Indentation
