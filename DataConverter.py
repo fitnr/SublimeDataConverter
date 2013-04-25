@@ -428,7 +428,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             create += u'{i}' + header + " " + typ + "," + self.newline
 
         create = create[:-2] + '{n}'  # Remove the comma and newline
-        create += u');{n}'
+        create += u") CHARACTER SET utf8;{n}"
 
         insert = insert[:-1] + u") {n}"
 
