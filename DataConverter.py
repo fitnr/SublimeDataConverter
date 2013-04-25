@@ -15,13 +15,15 @@ import StringIO
 PACKAGES = sublime.packages_path()
 
 
-def UnicodeDictReader(utf8_data, **kwargs):
-    '''http://stackoverflow.com/questions/5478659/python-module-like-csv-dictreader-with-full-utf8-support'''
-    csv_reader = csv.DictReader(utf8_data, **kwargs)
-    keymap = dict((k, k.decode('utf-8')) for k in csv_reader.fieldnames)
+def UnicodeDictReader(data, encoding='utf-8', **kwargs):
+    '''Adapted from:
+    http://stackoverflow.com/questions/5478659/python-module-like-csv-dictreader-with-full-utf8-support'''
+    csv_reader = csv.DictReader(data, **kwargs)
+    keymap = dict((k, k.decode(encoding)) for k in csv_reader.fieldnames)
 
     for row in csv_reader:
-        yield dict((keymap[k], v.decode('utf-8')) for k, v in row.iteritems())
+        print [type(v.decode(encoding)) for v in row.values()]
+        yield dict((keymap[k], v.decode(encoding)) for k, v in row.iteritems())
 
 
 class DataConverterCommand(sublime_plugin.TextCommand):
@@ -177,10 +179,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('has_header', False) is True:
             selection = selection[selection.find(self.newline):]
 
+        selection = selection.encode('utf-8')
         csvIO = StringIO.StringIO(selection)
 
         reader = UnicodeDictReader(
             csvIO,
+            encoding='utf-8',
             fieldnames=self.headers,
             dialect=self.dialect)
 
