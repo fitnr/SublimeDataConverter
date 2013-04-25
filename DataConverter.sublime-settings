@@ -19,6 +19,12 @@
   // When false or blank, DataConverter tries to detect the dialect, which isn't 100% reliable.
   // "use_dialect": "example"
 
+  // Modern HTML served with a proper character encoding can accept UTF-8 characters.
+  // If you're using another charset for your html, set this to false.
+  // When false, the DataConverter 'to HTML Table' function will escape non-ascii characters (e.g. &ndash; for –)
+  // (By the way, XML is always returned with escaped characters) 
+  "html_utf8": true,
+
   // DataConverter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
   // This must be one character long. Use "\t" is for tab. 
   "delimiter": ",",

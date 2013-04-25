@@ -108,6 +108,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         else:
             self.indent = "\t"
 
+        # HTML characters
+        self.html_utf8 = self.settings.get('html_utf8', False)
+
         # Dialect
         if (self.settings.get('use_dialect')):
             dialectname = self.settings.get('use_dialect')
@@ -337,10 +340,13 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             tbody += self.tr(rowText)
 
-        table = "<table>{n}{i}<thead>{n}" + thead + "</thead>{n}"
-        table += "{i}<tbody>{n}" + tbody + "</tbody>{n}</table>"
+        table = u"<table>{n}{i}<thead>{n}" + thead + u"</thead>{n}"
+        table += u"{i}<tbody>{n}" + tbody + u"</tbody>{n}</table>"
 
-        return table.format(i=self.indent, n=self.newline)
+        if self.html_utf8:
+            return table.format(i=self.indent, n=self.newline)
+        else:
+            return table.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
 
     def javascript(self, datagrid):
         """JavaScript object converter"""
@@ -474,16 +480,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         #begin render loop
         for row in datagrid:
-            output_text += '{i}<row>{n}'
+            output_text += u'{i}<row>{n}'
             for header in self.headers:
                 item = row[header] or ""
-                output_text += '{i}{i}<{1}>{0}</{1}>{n}'.format(item, header, i=self.indent, n=self.newline)
+                output_text += u'{i}{i}<{1}>{0}</{1}>{n}'.format(item, header, i=self.indent, n=self.newline)
 
-            output_text += "{i}</row>{n}"
+            output_text += u"{i}</row>{n}"
 
-        output_text += "</rows>"
+        output_text += u"</rows>"
 
-        return output_text.format(i=self.indent, n=self.newline)
+        return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
 
     def xmlProperties(self, datagrid):
         """XML properties converter"""
@@ -496,14 +502,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             for header in self.headers:
                 item = row[header] or ""
-                row_list.append('{0}="{1}"'.format(header, item))
-                row_text = " ".join(row_list)
+                row_list.append(u'{0}="{1}"'.format(header, item))
+                row_text = u" ".join(row_list)
 
-            output_text += "{i}<row " + row_text + "></row>{n}"
+            output_text += u"{i}<row " + row_text + "></row>{n}"
 
-        output_text += "</rows>"
+        output_text += u"</rows>"
 
-        return output_text.format(i=self.indent, n=self.newline)
+        return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
 
     def text_table(self, datagrid):
         """text table converter"""
