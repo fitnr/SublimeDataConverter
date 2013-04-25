@@ -19,10 +19,11 @@ def UnicodeDictReader(data, encoding='utf-8', **kwargs):
     '''Adapted from:
     http://stackoverflow.com/questions/5478659/python-module-like-csv-dictreader-with-full-utf8-support'''
     csv_reader = csv.DictReader(data, **kwargs)
-    keymap = dict((k, k.decode(encoding)) for k in csv_reader.fieldnames)
+    # Unlike the example, we know that our field names are already unicode
+    # So need not decode them.
+    keymap = dict((k, k) for k in csv_reader.fieldnames)
 
     for row in csv_reader:
-        print [type(v.decode(encoding)) for v in row.values()]
         yield dict((keymap[k], v.decode(encoding)) for k, v in row.iteritems())
 
 
@@ -104,9 +105,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # Indentation
         if (self.view.settings().get('translate_tabs_to_spaces')):
-            self.indent = " " * int(self.view.settings().get('tab_size', 4))
+            self.indent = u" " * int(self.view.settings().get('tab_size', 4))
         else:
-            self.indent = "\t"
+            self.indent = u"\t"
 
         # HTML characters
         self.html_utf8 = self.settings.get('html_utf8', False)
@@ -192,7 +193,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             dialect=self.dialect)
 
         if self.settings.get('typed', False) is True:
-            typer = UnicodeDictReader(csvIO, fieldnames=self.headers, dialect=self.dialect)
+            # Another reader for checking field types.
+            typerIO = StringIO.StringIO(selection)
+            typer = csv.DictReader(typerIO, fieldnames=self.headers, dialect=self.dialect)
             self.types = self.parse(typer, self.headers)
 
         return reader
@@ -268,7 +271,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             if row[key] is None:
                 txt = nulltxt
             elif typ == str:
-                txt = '"' + row[key] + '"'
+                txt = u'"' + row[key] + '"'
             else:
                 txt = row[key]
 
@@ -278,12 +281,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def actionscript(self, datagrid):
         """Actionscript converter"""
         self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
-        output = "["
+        output = u"["
 
         #begin render loops
         for row in datagrid:
             output += "{"
-            output += self.type_loop(row, '{0}:{1},')
+            output += self.type_loop(row, u'{0}:{1},')
 
             output = output[0:-1] + "}" + "," + self.newline
 
@@ -293,7 +296,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def asp(self, datagrid):
         self.syntax = PACKAGES + '/ASP/ASP.tmLanguage'
         #comment, comment_end = "'", ""
-        output, r = "", 0
+        output, r = u"", 0
         zipper = zip(range(len(self.headers)), self.headers, self.types)
         #print self.headers, self.types
 
@@ -307,10 +310,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 if item_type is None:
                     row[key] = 'null'
 
-                output += 'myArray({0},{1}) = {2}'.format(c, r, row[key] + self.newline)
+                output += u'myArray({0},{1}) = {2}'.format(c, r, row[key] + self.newline)
             r = r + 1
 
-        dim = 'Dim myArray({0},{1}){2}'.format(c, r - 1, self.newline)
+        dim = u'Dim myArray({0},{1}){2}'.format(c, r - 1, self.newline)
 
         return dim + output
 
@@ -321,22 +324,22 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def html(self, datagrid):
         """HTML Table converter"""
         self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
-        thead, tbody = "", ""
+        thead, tbody = u"", u""
 
         # Render table head
         for header in self.headers:
-            thead += '{i}{i}{i}<th>' + header + '</th>{n}'
+            thead += u'{i}{i}{i}<th>' + header + '</th>{n}'
 
         thead = self.tr(thead)
 
         # Render table rows
         for row in datagrid:
-            rowText = ""
+            rowText = u""
 
             # Sadly, dictReader doesn't always preserve row order,
             # so we loop through the headers instead.
             for key in self.headers:
-                rowText += '{i}{i}{i}<td>' + (row[key] or "") + '</td>{n}'
+                rowText += u'{i}{i}{i}<td>' + (row[key] or "") + u'</td>{n}'
 
             tbody += self.tr(rowText)
 
@@ -351,11 +354,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def javascript(self, datagrid):
         """JavaScript object converter"""
         self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
-        output = 'var dataConverter = [' + self.newline
+        output = u'var dataConverter = [' + self.newline
 
         #begin render loop
         for row in datagrid:
-            output += self.indent + "{" + self.type_loop(row, '{0}: {1}, ')
+            output += self.indent + "{" + self.type_loop(row, u'{0}: {1}, ')
             output = output[:-2] + "}," + self.newline
 
         return output[:-2] + self.newline + '];'
@@ -398,42 +401,42 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """MySQL converter"""
         self.syntax = PACKAGES + '/SQL/SQL.tmLanguage'
 
-        table = 'DataConverter'
+        table = u'DataConverter'
 
         # CREATE TABLE statement
-        create = 'CREATE TABLE ' + table + '({n}'
-        create += self.indent + "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,{n}"
+        create = u'CREATE TABLE ' + table + '({n}'
+        create += self.indent + u"id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,{n}"
 
         # INSERT TABLE Statement
-        insert = 'INSERT INTO ' + table + " {n}{i}("
+        insert = u'INSERT INTO ' + table + " {n}{i}("
 
         # VALUES list
-        values = "VALUES" + self.newline
+        values = u"VALUES" + self.newline
 
         # Loop through headers
         for header, typ in zip(self.headers, self.types):
             if typ == str:
-                typ = 'VARCHAR(255)'
+                typ = u'VARCHAR(255)'
             elif typ == float:
-                typ = 'FLOAT'
+                typ = u'FLOAT'
             elif typ == int:
-                typ = 'INT'
+                typ = u'INT'
 
             insert += header + ","
 
-            create += '{i}' + header + " " + typ + "," + self.newline
+            create += u'{i}' + header + " " + typ + "," + self.newline
 
         create = create[:-2] + '{n}'  # Remove the comma and newline
-        create += ');{n}'
+        create += u');{n}'
 
-        insert = insert[:-1] + ") {n}"
+        insert = insert[:-1] + u") {n}"
 
         # loop through rows
         for row in datagrid:
-            values += self.indent + "("
-            values += self.type_loop(row, form='{1},', nulltxt='NULL')
+            values += self.indent + u"("
+            values += self.type_loop(row, form=u'{1},', nulltxt='NULL')
 
-            values = values[:-1] + '),' + self.newline
+            values = values[:-1] + u'),' + self.newline
 
         output = create + insert + values[:-2] + ';'
         return output.format(i=self.indent, n=self.newline)
@@ -442,16 +445,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """PHP converter"""
         self.syntax = PACKAGES + '/PHP/PHP.tmLanguage'
         #comment, comment_end = "//", ""
-        output = "$DataConverter = array(" + self.newline
+        output = u"$DataConverter = array(" + self.newline
 
         #begin render loop
         for row in datagrid:
-            output += self.indent + "array("
-            output += self.type_loop(row, '"{0}"=>{1}, ')
+            output += self.indent + u"array("
+            output += self.type_loop(row, u'"{0}"=>{1}, ')
 
-            output = output[:-2] + ")," + self.newline
+            output = output[:-2] + u")," + self.newline
 
-        return output[:-1] + self.newline + ");"
+        return output[:-1] + self.newline + u");"
 
     def python(self, datagrid):
         """Python dict converter"""
@@ -462,7 +465,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """Ruby converter"""
         self.syntax = PACKAGES + '/Ruby/Ruby.tmLanguage'
         #comment, comment_end = "#", ""
-        output, tableName = u"[", "DataConverter"
+        output = u"["
 
         #begin render loop
         for row in datagrid:
@@ -476,7 +479,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def xml(self, datagrid):
         """XML Nodes converter"""
         self.syntax = PACKAGES + '/XML/XML.tmLanguage'
-        output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
+        output_text = u'<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
         #begin render loop
         for row in datagrid:
@@ -494,7 +497,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def xmlProperties(self, datagrid):
         """XML properties converter"""
         self.syntax = PACKAGES + '/XML/XML.tmLanguage'
-        output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
+        output_text = u'<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
         #begin render loop
         for row in datagrid:
@@ -539,7 +542,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             row_text = '|'
 
             for item, header in zip(line, self.headers):
-                print header, item
                 row_text += item + ' ' * (field_length[header] - len(item)) + ' |'
 
             output_text += row_text + "{n}"
