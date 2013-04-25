@@ -43,7 +43,8 @@ or this (JSON):
 * Javascript object
 * MySQL
 * PHP
-* Python
+* Python (list of dicts)
+* Python (list of lists)
 * Ruby
 * text table
 * XML

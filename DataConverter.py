@@ -73,7 +73,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "json_rows": self.jsonArrayRows,
             "mysql": self.mysql,
             "php": self.php,
-            "python": self.python,
+            "python_dict": self.python_dict,
+            "python_list": self.python_list,
             "ruby": self.ruby,
             "xml": self.xml,
             "text_table": self.text_table,
@@ -92,7 +93,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         mergeheaders = kwargs['format'] in no_space_formats
         self.settings.set('mergeheaders', mergeheaders)
 
-        untyped_formats = ["html", "json", "json_columns", "json_rows", "python", "text_table", "xml", "xml_properties"]
+        untyped_formats = ["html", "json", "json_columns", "json_rows", "text_table", "xml", "xml_properties"]
         # Don't like having 'not' in this expression, but it makes more sense to use 'typed' from here on out
         # And it's less error prone to use the (smaller) list of untyped formats
         typed = kwargs['format'] not in untyped_formats
@@ -456,10 +457,38 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output[:-1] + self.newline + u");"
 
-    def python(self, datagrid):
+    def python_dict(self, datagrid):
         """Python dict converter"""
         self.syntax = PACKAGES + '/Python/Python.tmLanguage'
-        return repr([row for row in datagrid])
+        fields = []
+        for row in datagrid:
+            outrow = {}
+            for k, t in zip(self.headers, self.types):
+                if t == int:
+                    outrow[k] = int(row[k])
+                elif t == float:
+                    outrow[k] = float(row[k])
+                else:
+                    outrow[k] = row[k]
+            fields.append(outrow)
+
+        return repr(fields)
+
+    def python_list(self, datagrid):
+        """Python list of lists converter"""
+        self.syntax = PACKAGES + '/Python/Python.tmLanguage'
+        fields = []
+        for row in datagrid:
+            outrow = []
+            for k, t in zip(self.headers, self.types):
+                if t == int:
+                    outrow.append(int(row[k]))
+                elif t == float:
+                    outrow.append(float(row[k]))
+                else:
+                    outrow.append(row[k])
+            fields.append(outrow)
+        return '# headers = ' + repr(self.headers) + self.newline + repr(fields)
 
     def ruby(self, datagrid):
         """Ruby converter"""
