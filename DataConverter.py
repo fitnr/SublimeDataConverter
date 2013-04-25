@@ -517,32 +517,32 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def text_table(self, datagrid):
         """text table converter"""
         self.syntax = PACKAGES + '/Text/Plain text.tmLanguage'
-        output_text, divline, field_length, fields = u'|', u'+', {}, []
+        output_text, divline, field_length, _datagrid = u'|', u'+', {}, []
+
+        _datagrid = [row for row in datagrid]
 
         for header in self.headers:
-            field_length[header] = len(header) + 1  # Add 1 to account for end-padding
+            length = len(header) + 1  # Add 1 to account for end-padding
+
+            for row in _datagrid:
+                try:
+                    length = max(length, len(row[header]) + 1)
+                except:
+                    pass
+            field_length[header] = length
             divline += '-' * (field_length[header] + 1) + '+'
             output_text += ' ' + header + ' ' * (field_length[header] - len(header)) + '|'
 
-        divline += '{n}'
+        divline += u'{n}'
         output_text = u'{0}{1}{{n}}{0}'.format(divline, output_text)
 
-        for row in datagrid:
-            thisrow = []
-            for header in self.headers:
-                try:
-                    thisrow.append(u' ' + (row[header] or ''))
-                    field_length[header] = max(field_length[header], len(row[header]) + 1)
-                except:
-                    pass
-            fields.append(thisrow)
-
         #begin render loop
-        for line in fields:
-            row_text = '|'
+        for row in _datagrid:
+            row_text = u'|'
 
-            for item, header in zip(line, self.headers):
-                row_text += item + ' ' * (field_length[header] - len(item)) + ' |'
+            for header in self.headers:
+                item = row[header] or ""
+                row_text += u' ' + item + ' ' * (field_length[header] - len(item)) + '|'
 
             output_text += row_text + "{n}"
 
