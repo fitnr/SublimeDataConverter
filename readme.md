@@ -42,6 +42,7 @@ or this (JSON):
 * JSON (array of rows)
 * Javascript object
 * MySQL
+* Perl
 * PHP
 * Python (list of dicts)
 * Python (list of lists)

@@ -72,6 +72,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "json_columns": self.jsonArrayCols,
             "json_rows": self.jsonArrayRows,
             "mysql": self.mysql,
+            "perl": self.perl,
             "php": self.php,
             "python_dict": self.python_dict,
             "python_list": self.python_list,
@@ -441,6 +442,20 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output = create + insert + values[:-2] + ';'
         return output.format(i=self.indent, n=self.newline)
+
+    def perl(self, datagrid):
+        """Perl converter"""
+        self.syntax = PACKAGES + '/Perl/Perl.tmLanguage'
+        output = u"["
+
+        #begin render loop
+        for row in datagrid:
+            output += "{"
+            output += self.type_loop(row, u'"{0}"=>{1}, ', nulltxt='undef')
+
+            output = output[:-2] + "}," + self.newline
+
+        return output[:-2] + "];"
 
     def php(self, datagrid):
         """PHP converter"""
