@@ -163,6 +163,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         '''Mess with headers, merging and stripping as needed.'''
         firstrow = sample.splitlines().pop(0).split(self.dialect.delimiter)
 
+        sample = sample.encode('ascii', 'ignore')  # The csv sniffer doesn't like unicode!
         if self.settings.get('assume_headers', None) or csv.Sniffer().has_header(sample):
             headers = firstrow
             self.settings.set('has_header', True)
@@ -176,6 +177,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 headers = [j.strip('"\'') for j in headers]
 
         else:
+            self.settings.set('has_header', False)
             headers = ["val" + str(x) for x in range(len(firstrow))]
 
         return headers
@@ -328,11 +330,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
         thead, tbody = u"", u""
 
-        # Render table head
-        for header in self.headers:
-            thead += u'{i}{i}{i}<th>' + header + '</th>{n}'
+        # Render the table head, if there is one
+        if self.settings.get('has_header') is True:
+            for header in self.headers:
+                thead += u'{i}{i}{i}<th>' + header + '</th>{n}'
 
-        thead = self.tr(thead)
+            thead = u'{i}<thead>{n}' + self.tr(thead) + '</thead>{n}'
+        else:
+
+            thead = ''
 
         # Render table rows
         for row in datagrid:
@@ -345,7 +351,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             tbody += self.tr(rowText)
 
-        table = u"<table>{n}{i}<thead>{n}" + thead + u"</thead>{n}"
+        table = u"<table>{n}" + thead
         table += u"{i}<tbody>{n}" + tbody + u"</tbody>{n}</table>"
 
         if self.html_utf8:
@@ -575,10 +581,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                     pass
             field_length[header] = length
             divline += '-' * (field_length[header] + 1) + '+'
+
             output_text += ' ' + header + ' ' * (field_length[header] - len(header)) + '|'
 
         divline += u'{n}'
-        output_text = u'{0}{1}{{n}}{0}'.format(divline, output_text)
+
+        if self.settings.set('has_header', False):
+            output_text = u'{0}{1}{{n}}{0}'.format(divline, output_text)
+        else:
+            output_text = divline
 
         #begin render loop
         for row in _datagrid:
