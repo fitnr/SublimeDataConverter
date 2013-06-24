@@ -1,11 +1,8 @@
 # Sublime DataConverter
 
-This is a [Sublime Text 2](http://www.sublimetext.com/) package for converting csv files to various other formats. It's been adapted from the wonderful [Mr. Data Converter](http://shancarter.com/data_converter/).
+This [Sublime Text 2](http://www.sublimetext.com/) package converts csv files to various other formats. It's been adapted from the wonderful [Mr. Data Converter](http://shancarter.com/data_converter/).
 
-## What it does
-It converts comma-separated or tab-separated data into many formats. Actually, just about any separator or line ending will be tolerated.
-
-You'll find commands look like __DataConverter: to *foo*__ in the Command Palette. DataConverter will convert a selection or multiple selections. If nothing is selected, the entire document is converted.
+After installing, you'll find commands look like __DataConverter: to *foo*__ in the Command Palette. DataConverter will convert a selection or multiple selections. If nothing is selected, the entire document is converted.
 
 ### Examples
 
