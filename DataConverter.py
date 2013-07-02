@@ -586,7 +586,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         divline += u'{n}'
 
-        if self.settings.set('has_header', False):
+        if self.settings.get('has_header', False):
             output_text = u'{0}{1}{{n}}{0}'.format(divline, output_text)
         else:
             output_text = divline

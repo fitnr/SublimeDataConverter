@@ -26,7 +26,7 @@
   "html_utf8": true,
 
   // DataConverter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
-  // This must be one character long. Use "\t" is for tab. 
+  // This must be one character long. Use "\t" for tab. 
   "delimiter": ",",
 
   // For formats where keys can't have spaces, field names will be joined with this character.
