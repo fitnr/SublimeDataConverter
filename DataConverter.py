@@ -126,6 +126,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 self.dialect = csv.get_dialect(dialectname)
             except Exception:
                 user_dialects = self.settings.get('dialects')
+                print "couldn't find ", dialectname
 
                 try:
                     try:
@@ -340,7 +341,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             for header in self.headers:
                 thead += u'{i}{i}{i}<th>' + header + '</th>{n}'
 
-            thead = u'{i}<thead>{n}' + self.tr(thead) + '</thead>{n}'
+            thead = u'{i}<thead>{n}' + self.tr(thead) + '{i}</thead>{n}'
         else:
 
             thead = ''
@@ -357,7 +358,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             tbody += self.tr(rowText)
 
         table = u"<table>{n}" + thead
-        table += u"{i}<tbody>{n}" + tbody + u"</tbody>{n}</table>"
+        table += u"{i}<tbody>{n}" + tbody + u"{i}</tbody>{n}</table>"
 
         if self.html_utf8:
             return table.format(i=self.indent, n=self.newline)
