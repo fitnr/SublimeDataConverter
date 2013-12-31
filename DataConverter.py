@@ -68,6 +68,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "asp": self.asp,
             "html": self.html,
             "javascript": self.javascript,
+            "jira": self.jira,
             "json": self.json,
             "json_columns": self.jsonArrayCols,
             "json_rows": self.jsonArrayRows,
@@ -79,6 +80,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "ruby": self.ruby,
             "xml": self.xml,
             "text_table": self.text_table,
+            "wiki": self.wiki,
             "xml_properties": self.xmlProperties
         }
 
@@ -371,6 +373,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output[:-2] + self.newline + '];'
 
+    def jira(self, datagrid):
+        colsep, headsep = '|', '||'
+        print(self.headers)
+        output = headsep + headsep.join(self.headers) + headsep + self.newline
+
+        for row in datagrid:
+            output += colsep + colsep.join(row.values()) + colsep + self.newline
+
+        return output
+
     def json(self, datagrid):
         """JSON properties converter"""
         import json
@@ -603,3 +615,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output_text += divline
         return output_text.format(n=self.newline)
+
+    def wiki(self, datagrid):
+        headsep, colsep = '!', '|'
+
+        output = '{| class="wikitable"' + self.newline
+        output += headsep + (headsep * 2).join(self.headers) + self.newline
+        
+        for row in datagrid:
+            output += '|-' + self.newline
+            output += colsep + (colsep * 2).join(row.values()) + self.newline
+
+        return output + '|}'

@@ -3,6 +3,7 @@
   { "caption": "DataConverter: to ASP/VBScript", "command": "data_converter", "args": {"format": "asp" } },
   { "caption": "DataConverter: to HTML table", "command": "data_converter", "args": {"format": "html" } },
   { "caption": "DataConverter: to JavaScript object", "command": "data_converter", "args": {"format": "javascript" } },
+  { "caption": "DataConverter: to JIRA", "command": "data_converter", "args": {"format": "jira" } },
   { "caption": "DataConverter: to JSON", "command": "data_converter", "args": {"format": "json" } },
   { "caption": "DataConverter: to JSON (array of columns)", "command": "data_converter", "args": {"format": "json_columns" } },
   { "caption": "DataConverter: to JSON (array of rows)", "command": "data_converter", "args": {"format": "json_rows" } },
@@ -12,6 +13,7 @@
   { "caption": "DataConverter: to Python dict", "command": "data_converter", "args": {"format": "python_dict" } },
   { "caption": "DataConverter: to Python lists", "command": "data_converter", "args": {"format": "python_list" } },
   { "caption": "DataConverter: to Ruby", "command": "data_converter", "args": {"format": "ruby" } },
+  { "caption": "DataConverter: to wiki markup", "command": "data_converter", "args": {"format": "wiki" } },
   { "caption": "DataConverter: to XML Nodes", "command": "data_converter", "args": {"format": "xml" } },
   { "caption": "DataConverter: to XML Properties", "command": "data_converter", "args": {"format": "xml_properties" } },
   { "caption": "DataConverter: to text table", "command": "data_converter", "args": {"format": "text_table" } }

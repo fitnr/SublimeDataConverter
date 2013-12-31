@@ -34,6 +34,7 @@ or this (JSON):
 * ActionScript
 * ASP
 * HTML tables
+* JIRA (Atlassian Confluence)
 * JSON
 * JSON (array of columns)
 * JSON (array of rows)
@@ -45,6 +46,7 @@ or this (JSON):
 * Python (list of lists)
 * Ruby
 * text table
+* Wiki markup
 * XML
 * XML (property list)
 
