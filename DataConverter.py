@@ -447,6 +447,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output[:-2] + self.newline + '];'
 
+    def jira(self, data):
+        colsep, headsep = '|', '||'
+        output = headsep + headsep.join(data.fieldnames) + headsep + self.newline
+
+        for row in data:
+            output += colsep + colsep.join(row.values()) + colsep + self.newline
+
+        return output
+
     def json(self, data):
         """JSON properties converter"""
         import json
@@ -714,6 +723,18 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output_text += divline
         return output_text.format(n=self.newline)
+
+    def wiki(self, data):
+        headsep, colsep = '!', '|'
+
+        output = '{| class="wikitable"' + self.newline
+        output += headsep + (headsep * 2).join(data.fieldnames) + self.newline
+        
+        for row in data:
+            output += '|-' + self.newline
+            output += colsep + (colsep * 2).join(row.values()) + self.newline
+
+        return output + '|}'
 
     def yaml(self, data):
         self.syntax = PACKAGES + '/YAML/YAML.tmLanguage'
