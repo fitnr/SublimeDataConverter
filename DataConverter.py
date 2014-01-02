@@ -62,39 +62,44 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.deselect()
 
     def get_settings(self, kwargs):
-        # Adding a format? Check if it belongs in no_space_formats and untyped_formats.
-        formats = {
-            "actionscript": self.actionscript,
-            "asp": self.asp,
-            "html": self.html,
-            "javascript": self.javascript,
-            "json": self.json,
-            "json_columns": self.jsonArrayCols,
-            "json_rows": self.jsonArrayRows,
-            "mysql": self.mysql,
-            "perl": self.perl,
-            "php": self.php,
-            "python_dict": self.python_dict,
-            "python_list": self.python_list,
-            "ruby": self.ruby,
-            "xml": self.xml,
-            "text_table": self.text_table,
-            "xml_properties": self.xmlProperties
-        }
+        '''
+        Adding a format? Check if it belongs in no_space_formats and untyped_formats.
+        untyped_formats: don't need to be checked for int/str/etc types.
+        no_space_formats: can't have spaces in their headers. By default, spaces replaced with "_".
+        '''
 
-        self.converter = formats[kwargs['format']]
+        # The format key in .sublime-commands must match the name of the function we want to call.
+        self.converter = getattr(self, kwargs['format'])
 
         # This will be set later on, in the converter function
         self.syntax = None
 
         self.settings = sublime.load_settings('DataConverter.sublime-settings')
 
-        # Combine headers for xml formats
-        no_space_formats = ['actionscript', 'javascript', 'mysql', 'xml', 'xml_properties']
+        # Whitespace
+        # Combine headers for certain formats
+        no_space_formats = [
+            'actionscript',
+            'javascript',
+            'mysql',
+            'xml',
+            'xml_properties'
+        ]
         mergeheaders = kwargs['format'] in no_space_formats
         self.settings.set('mergeheaders', mergeheaders)
 
-        untyped_formats = ["html", "json", "json_columns", "json_rows", "text_table", "xml", "xml_properties"]
+        # Typing
+        untyped_formats = [
+            "html",
+            "jira",
+            "json",
+            "json_columns",
+            "json_rows",
+            "text_table",
+            "wiki"
+            "xml",
+            "xml_properties",
+        ]
         # Don't like having 'not' in this expression, but it makes more sense to use 'typed' from here on out
         # And it's less error prone to use the (smaller) list of untyped formats
         typed = kwargs['format'] not in untyped_formats
@@ -114,7 +119,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         # HTML characters
         self.html_utf8 = self.settings.get('html_utf8', False)
 
-        # Dialect
+        # CSV dialect
         if (self.settings.get('use_dialect')):
             dialectname = self.settings.get('use_dialect')
             try:
@@ -378,7 +383,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return json.dumps([row for row in datagrid])
 
-    def jsonArrayCols(self, datagrid):
+    def json_columns(self, datagrid):
         """JSON Array of Columns converter"""
         import json
         self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
@@ -391,7 +396,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 colDict[key].append(item)
         return json.dumps(colDict)
 
-    def jsonArrayRows(self, datagrid):
+    def json_rows(self, datagrid):
         """JSON Array of Rows converter"""
         import json
         self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
@@ -544,7 +549,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
 
-    def xmlProperties(self, datagrid):
+    def xml_properties(self, datagrid):
         """XML properties converter"""
         self.syntax = PACKAGES + '/XML/XML.tmLanguage'
         output_text = u'<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
