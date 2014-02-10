@@ -81,7 +81,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             'javascript',
             'mysql',
             'xml',
-            'xml_properties'
+            'xml_properties',
+            'yaml'
         ]
         mergeheaders = kwargs['format'] in no_space_formats
         self.settings.set('mergeheaders', mergeheaders)
@@ -624,3 +625,17 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output_text += divline
         return output_text.format(n=self.newline)
+
+    def yaml(self, datagrid):
+        self.set_syntax('YAML')
+
+        output_text = "---" + self.newline
+
+        for row in datagrid:
+            output_text += "-" + self.newline
+            for header in self.headers:
+                if row[header]:
+                    output_text += "  " + header + ": " + row[header] + self.newline
+            output_text += self.newline
+
+        return output_text
