@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DataConverter package for Sublime Text 2
+DataConverter package for Sublime Text
 https://github.com/fitnr/SublimeDataConverter
 
 Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
