@@ -14,5 +14,7 @@
   { "caption": "DataConverter: to Ruby", "command": "data_converter", "args": {"format": "ruby" } },
   { "caption": "DataConverter: to XML Nodes", "command": "data_converter", "args": {"format": "xml" } },
   { "caption": "DataConverter: to XML Properties", "command": "data_converter", "args": {"format": "xml_properties" } },
-  { "caption": "DataConverter: to text table", "command": "data_converter", "args": {"format": "text_table" } }
+  { "caption": "DataConverter: to text table", "command": "data_converter", "args": {"format": "text_table" } },
+  { "caption": "DataConverter: to YAML", "command": "data_converter", "args": {"format": "yaml" } }
+
 ]

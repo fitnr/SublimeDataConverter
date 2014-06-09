@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DataConverter package for Sublime Text 2
+DataConverter package for Sublime Text
 https://github.com/fitnr/SublimeDataConverter
 
 Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
@@ -19,12 +19,23 @@ def UnicodeDictReader(data, encoding='utf-8', **kwargs):
     '''Adapted from:
     http://stackoverflow.com/questions/5478659/python-module-like-csv-dictreader-with-full-utf8-support'''
     csv_reader = csv.DictReader(data, **kwargs)
+
     # Unlike the example, we know that our field names are already unicode
     # So need not decode them.
-    keymap = dict((k, k) for k in csv_reader.fieldnames)
-
     for row in csv_reader:
-        yield dict((keymap[k], v.decode(encoding)) for k, v in row.iteritems())
+        y = dict()
+        print row
+        for k, v in row.iteritems():
+            if v is None:
+                v = ""
+
+            # Can't imagine when this would happen...
+            if k not in csv_reader.fieldnames:
+                continue
+
+            y[k] = v.decode(encoding)
+
+        yield y
 
 
 class DataConverterCommand(sublime_plugin.TextCommand):
@@ -203,9 +214,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         if self.settings.get('typed', False) is True:
             # Another reader for checking field types.
-            typerIO = StringIO.StringIO(selection)
-            typer = csv.DictReader(typerIO, fieldnames=self.headers, dialect=self.dialect)
-            self.types = self.parse(typer, self.headers)
+            try:
+                typerIO = StringIO.StringIO(selection)
+                typer = csv.DictReader(typerIO, fieldnames=self.headers, dialect=self.dialect)
+                self.types = self.parse(typer, self.headers)
+            except:
+                pass
 
         return reader
 
@@ -608,3 +622,17 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output_text += divline
         return output_text.format(n=self.newline)
+
+    def yaml(self, datagrid):
+        self.syntax = PACKAGES + '/YAML/YAML.tmLanguage'
+
+        output_text = u"---" + self.newline
+
+        for row in datagrid:
+            output_text += u"-" + self.newline
+            for header in self.headers:
+                if row[header]:
+                    output_text += "  " + header + ": " + row[header] + self.newline
+            output_text += self.newline
+
+        return output_text
