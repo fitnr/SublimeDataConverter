@@ -608,3 +608,17 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output_text += divline
         return output_text.format(n=self.newline)
+
+    def yaml(self, datagrid):
+        self.syntax = PACKAGES + '/YAML/YAML.tmLanguage'
+
+        output_text = u"---" + self.newline
+
+        for row in datagrid:
+            output_text += u"-" + self.newline
+            for header in self.headers:
+                if row[header]:
+                    output_text += "  " + header + ": " + row[header] + self.newline
+            output_text += self.newline
+
+        return output_text
