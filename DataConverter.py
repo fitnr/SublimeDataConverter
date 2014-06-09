@@ -155,8 +155,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             return dialect
         except Exception as e:
             print("DataConverter had trouble sniffing:", e)
+
             delimiter = self.settings.get('delimiter', ',')
-            delimiter = bytes(delimiter)  # dialect definition takes a 1-char bytestring
+
+            print('DataConverter: Going to go ahead with the default delimiter: "'+ delimiter +'"')
+            print('DataConverter: You can change the default delimiter in the settings file.')
+            
+            delimiter = bytes(delimiter, 'utf-8')  # dialect definition takes a 1-char bytestring
+
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
                 return csv.get_dialect('barebones')
@@ -308,7 +314,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         #begin render loops
         for row in datagrid:
-            print ('begin row', row)
             output += "{"
             output += self.type_loop(row, '{0}:{1},')
 
