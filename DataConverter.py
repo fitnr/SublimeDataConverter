@@ -19,12 +19,23 @@ def UnicodeDictReader(data, encoding='utf-8', **kwargs):
     '''Adapted from:
     http://stackoverflow.com/questions/5478659/python-module-like-csv-dictreader-with-full-utf8-support'''
     csv_reader = csv.DictReader(data, **kwargs)
+
     # Unlike the example, we know that our field names are already unicode
     # So need not decode them.
-    keymap = dict((k, k) for k in csv_reader.fieldnames)
-
     for row in csv_reader:
-        yield dict((keymap[k], v.decode(encoding)) for k, v in row.iteritems())
+        y = dict()
+        print row
+        for k, v in row.iteritems():
+            if v is None:
+                v = ""
+
+            # Can't imagine when this would happen...
+            if k not in csv_reader.fieldnames:
+                continue
+
+            y[k] = v.decode(encoding)
+
+        yield y
 
 
 class DataConverterCommand(sublime_plugin.TextCommand):
@@ -203,9 +214,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         if self.settings.get('typed', False) is True:
             # Another reader for checking field types.
-            typerIO = StringIO.StringIO(selection)
-            typer = csv.DictReader(typerIO, fieldnames=self.headers, dialect=self.dialect)
-            self.types = self.parse(typer, self.headers)
+            try:
+                typerIO = StringIO.StringIO(selection)
+                typer = csv.DictReader(typerIO, fieldnames=self.headers, dialect=self.dialect)
+                self.types = self.parse(typer, self.headers)
+            except:
+                pass
 
         return reader
 
