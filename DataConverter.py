@@ -169,6 +169,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def sniff(self, sample):
         try:
             dialect = csv.Sniffer().sniff(sample)
+            # csv.Sniffer returns dialect in a format register_dialect doesn't like!
+            # Pretty annoying bug!
+            dialect.delimiter = bytes(dialect.delimiter)
+            dialect.quotechar = bytes(dialect.quotechar)
             csv.register_dialect('sniffed', dialect)
             print('DataConverter is using this delimiter:', dialect.delimiter)
             return 'sniffed'
@@ -181,7 +185,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             print('DataConverter: Using the default delimiter: "'+ delimiter +'"')
             print('DataConverter: You can change the default delimiter in the settings file.')
 
-            delimiter = bytes(delimiter, 'utf-8')  # dialect definition takes a 1-char bytestring
+            delimiter = bytes(delimiter)  # dialect definition takes a 1-char bytestring
 
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
