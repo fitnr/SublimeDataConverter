@@ -2,6 +2,7 @@
   { "caption": "DataConverter: to ActionScript", "command": "data_converter", "args": {"format": "actionscript" } },
   { "caption": "DataConverter: to ASP/VBScript", "command": "data_converter", "args": {"format": "asp" } },
   { "caption": "DataConverter: to HTML table", "command": "data_converter", "args": {"format": "html" } },
+  { "caption": "DataConverter: to Gherkin", "command": "data_converter", "args": {"format": "gherkin" } },
   { "caption": "DataConverter: to JavaScript object", "command": "data_converter", "args": {"format": "javascript" } },
   { "caption": "DataConverter: to JSON", "command": "data_converter", "args": {"format": "json" } },
   { "caption": "DataConverter: to JSON (array of columns)", "command": "data_converter", "args": {"format": "json_columns" } },
@@ -15,6 +16,7 @@
   { "caption": "DataConverter: to Ruby", "command": "data_converter", "args": {"format": "ruby" } },
   { "caption": "DataConverter: to XML Nodes", "command": "data_converter", "args": {"format": "xml" } },
   { "caption": "DataConverter: to XML Properties", "command": "data_converter", "args": {"format": "xml_properties" } },
+  { "caption": "DataConverter: to XML (Illustrator)", "command": "data_converter", "args": {"format": "xml_illustrator" } },
   { "caption": "DataConverter: to text table", "command": "data_converter", "args": {"format": "text_table" } },
   { "caption": "DataConverter: to YAML", "command": "data_converter", "args": {"format": "yaml" } }
 ]

@@ -36,6 +36,7 @@ or this (JSON):
 * ActionScript
 * ASP
 * HTML tables
+* Gherkin
 * JSON
 * JSON (array of columns)
 * JSON (array of rows)
@@ -49,6 +50,7 @@ or this (JSON):
 * text table
 * XML
 * XML (property list)
+* XML for data-driven Adobe Illustrator
 * YAML
 
 ### Configuration
