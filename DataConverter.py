@@ -41,14 +41,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for sel in self.view.sel():
             selection = self.view.substr(sel)
             sample = selection[:1024]
-            self.dialect = self.sniff(sample)
-            # Having separate headers and types lists is a bit clumsy,
-            # but a dict wouldn't keep track of the order of the fields.
-            # A slightly better way would be to use an OrderedDict, but this is more compatible with older Pythons.
 
-            self.headers = self.assign_headers(sample)
+            dialect = self.sniff(sample)
+            headers = self.assign_headers(sample, dialect)
+            #  This also assigns types (for typed formats)
+            data = self.import_csv(selection, headers, dialect)
 
-            data = self.import_csv(selection)
             # Run converter
             converted = self.converter(data)
             self.view.replace(edit, sel, converted)
@@ -172,9 +170,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             except Exception as e:
                 return csv.get_dialect('excel')
 
-    def assign_headers(self, sample):
+    def assign_headers(self, sample, dialect):
         '''Mess with headers, merging and stripping as needed.'''
-        firstrow = sample.splitlines().pop(0).split(self.dialect.delimiter)
+        firstrow = sample.splitlines().pop(0).split(dialect.delimiter)
 
         sample = sample.encode('ascii', 'ignore')  # The csv sniffer doesn't like unicode!
         if self.settings.get('assume_headers', None) or csv.Sniffer().has_header(sample):
@@ -195,7 +193,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return headers
 
-    def import_csv(self, selection):
+    def import_csv(self, selection, headers, dialect):
         # Remove header from entries that came with one.
         if self.settings.get('has_header', False) is True:
             selection = selection[selection.find(self.newline):]
@@ -204,14 +202,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         reader = csv.DictReader(
             csvIO,
-            fieldnames=self.headers,
-            dialect=self.dialect)
+            fieldnames=headers,
+            dialect=dialect)
 
         if self.settings.get('typed', False) is True:
             # Another reader for checking field types.
             typerIO = io.StringIO(selection)
-            typer = csv.DictReader(typerIO, fieldnames=self.headers, dialect=self.dialect)
-            self.types = self.parse(typer, self.headers)
+            typer = csv.DictReader(typerIO, fieldnames=headers, dialect=dialect)
+            self.types = self.parse(typer, headers)
 
         return reader
 
@@ -286,17 +284,17 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     # Note that converters should assign a syntax file path to self.syntax.
 
-    def type_loop(self, row, form, nulltxt='null'):
+    def type_loop(self, row, headers, formt, nulltxt='null'):
         """
         Helper loop for checking types as we write out a row.
         Strings get quoted, floats and ints don't.
         row is a dictionary returned from DictReader
-        Returns a line of code in format form (e.g. "{0}=>{1}, ")
+        Returns a line of code formatted with `formt` (e.g. "{0}=>{1}, ")
 
         """
         out = ''
 
-        for key, typ in zip(self.headers, self.types):
+        for key, typ in zip(headers, self.types):
             if row[key] is None:
                 txt = nulltxt
             elif typ == str:
@@ -304,10 +302,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             else:
                 txt = row[key]
 
-            out += form.format(key, txt)
+            out += formt.format(key, txt)
         return out
 
-    def actionscript(self, datagrid):
+    def actionscript(self, data):
         """Actionscript converter"""
 
         self.set_syntax('ActionScript')
@@ -315,23 +313,23 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         output = "["
 
         #begin render loops
-        for row in datagrid:
+        for row in data:
             output += "{"
-            output += self.type_loop(row, '{0}:{1},')
+            output += self.type_loop(row, data.fieldnames, '{0}:{1},')
 
             output = output[0:-1] + "}" + "," + self.newline
 
         return output[:-2] + "];"
 
     # ASP / VBScript
-    def asp(self, datagrid):
+    def asp(self, data):
         self.set_syntax('ASP')
         #comment, comment_end = "'", ""
         output, r = "", 0
 
-        for row in datagrid:
+        for row in data:
 
-            for c, key, item_type in zip(range(len(self.headers)), self.headers, self.types):
+            for c, key, item_type in zip(range(len(data.fieldnames)), data.fieldnames, self.types):
                 if item_type == str:
                     row[key] = '"' + (row[key] or "") + '"'
                 if item_type is None:
@@ -348,7 +346,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """Helper for HTML converter"""
         return "{i}{i}<tr>{n}" + row + "{i}{i}</tr>{n}"
 
-    def html(self, datagrid):
+    def html(self, data):
         """HTML Table converter.
         We use {i} and {n} as shorthand for self.indent and self.newline."""
 
@@ -357,7 +355,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # Render the table head, if there is one
         if self.settings.get('has_header') is True:
-            for header in self.headers:
+            for header in data.fieldnames:
                 thead += '{i}{i}{i}<th>' + header + '</th>{n}'
 
             thead = '{i}<thead>{n}' + self.tr(thead) + '</thead>{n}'
@@ -365,63 +363,61 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             thead = ''
 
         # Render table rows
-        for row in datagrid:
+        for row in data:
             rowText = ""
 
-            # Sadly, dictReader doesn't always preserve row order,
-            # so we loop through the headers instead.
-            for key in self.headers:
+            for key in data.fieldnames:
                 rowText += '{i}{i}{i}<td>' + (row[key] or "") + '</td>{n}'
 
             tbody += self.tr(rowText)
 
         table = "<table>{n}" + thead
-        table += "{i}<tbody>{n}" + tbody + "</tbody>{n}</table>"
+        table += "{i}<tbody>{n}" + tbody + "{i}</tbody>{n}</table>"
 
         if self.html_utf8:
             return table.format(i=self.indent, n=self.newline)
         else:
             return table.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
 
-    def javascript(self, datagrid):
+    def javascript(self, data):
         """JavaScript object converter"""
 
         self.set_syntax('JavaScript')
         output = 'var dataConverter = [' + self.newline
 
-        for row in datagrid:
-            output += self.indent + "{" + self.type_loop(row, '{0}: {1}, ')
+        for row in data:
+            output += self.indent + "{" + self.type_loop(row, data.fieldnames, '{0}: {1}, ')
             output = output[:-2] + "}," + self.newline
 
         return output[:-2] + self.newline + '];'
 
-    def json(self, datagrid):
+    def json(self, data):
         """JSON properties converter"""
         import json
         self.set_syntax('JavaScript', 'JSON')
 
-        return json.dumps([row for row in datagrid])
+        return json.dumps([row for row in data])
 
-    def json_columns(self, datagrid):
+    def json_columns(self, data):
         """JSON Array of Columns converter"""
         import json
         self.set_syntax('JavaScript', 'JSON')
         colDict = {}
 
-        for row in datagrid:
+        for row in data:
             for key, item in row.items():
                 if key not in colDict:
                     colDict[key] = []
                 colDict[key].append(item)
         return json.dumps(colDict)
 
-    def json_rows(self, datagrid):
+    def json_rows(self, data):
         """JSON Array of Rows converter"""
         import json
         self.set_syntax('JavaScript', 'JSON')
         rowArrays = []
 
-        for row in datagrid:
+        for row in data:
             itemlist = []
             for item in row.values():
                 itemlist.append(item)
@@ -429,7 +425,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return json.dumps(rowArrays)
 
-    def mysql(self, datagrid):
+    def mysql(self, data):
         """MySQL converter
         We use {i} and {n} as shorthand for self.indent and self.newline."""
 
@@ -448,7 +444,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         values = "VALUES" + self.newline
 
         # Loop through headers
-        for header, typ in zip(self.headers, self.types):
+        for header, typ in zip(data.fieldnames, self.types):
             if typ == str:
                 typ = 'VARCHAR(255)'
             elif typ == float:
@@ -465,7 +461,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         insert = insert[:-1] + ") {n}"
 
-        for row in datagrid:
+        for row in data:
             values += self.indent + "("
             values += self.type_loop(row, form='{1},', nulltxt='NULL')
 
@@ -474,42 +470,41 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         output = create + insert + values[:-2] + ';'
         return output.format(i=self.indent, n=self.newline)
 
-    def perl(self, datagrid):
+    def perl(self, data):
         """Perl converter"""
         self.set_syntax('Perl')
         output = "["
 
-        for row in datagrid:
+        for row in data:
             output += "{"
-            output += self.type_loop(row, '"{0}"=>{1}, ', nulltxt='undef')
+            output += self.type_loop(row, data.fieldnames, '"{0}"=>{1}, ', nulltxt='undef')
 
             output = output[:-2] + "}," + self.newline
 
         return output[:-2] + "];"
 
-    def php(self, datagrid):
+    def php(self, data):
         """PHP converter"""
         self.set_syntax('PHP')
         #comment, comment_end = "//", ""
 
         output = "$DataConverter = array(" + self.newline
 
-
-        for row in datagrid:
+        for row in data:
             output += self.indent + "array("
-            output += self.type_loop(row, '"{0}"=>{1}, ')
+            output += self.type_loop(row, data.fieldnames, '"{0}"=>{1}, ')
 
             output = output[:-2] + ")," + self.newline
 
         return output[:-1] + self.newline + ");"
 
-    def python_dict(self, datagrid):
+    def python_dict(self, data):
         """Python dict converter"""
         self.set_syntax('Python')
         fields = []
-        for row in datagrid:
+        for row in data:
             outrow = {}
-            for k, t in zip(self.headers, self.types):
+            for k, t in zip(data.fieldnames, self.types):
                 if t == int:
                     outrow[k] = int(row[k])
                 elif t == float:
@@ -520,13 +515,13 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return repr(fields)
 
-    def python_list(self, datagrid):
+    def python_list(self, data):
         """Python list of lists converter"""
         self.set_syntax('Python')
         fields = []
-        for row in datagrid:
+        for row in data:
             outrow = []
-            for k, t in zip(self.headers, self.types):
+            for k, t in zip(data.fieldnames, self.types):
                 if t == int:
                     outrow.append(int(row[k]))
                 elif t == float:
@@ -534,30 +529,30 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 else:
                     outrow.append(row[k])
             fields.append(outrow)
-        return '# headers = ' + repr(self.headers) + self.newline + repr(fields)
+        return '# headers = ' + repr(data.fieldnames) + self.newline + repr(fields)
 
-    def ruby(self, datagrid):
+    def ruby(self, data):
         """Ruby converter"""
         self.set_syntax('Ruby')
         #comment, comment_end = "#", ""
         output = "["
 
-        for row in datagrid:
+        for row in data:
             output += "{"
-            output += self.type_loop(row, '"{0}"=>{1}, ', nulltxt='nil')
+            output += self.type_loop(row, data.fieldnames, '"{0}"=>{1}, ', nulltxt='nil')
 
             output = output[:-2] + "}," + self.newline
 
         return output[:-2] + "];"
 
-    def xml(self, datagrid):
+    def xml(self, data):
         """XML Nodes converter"""
         self.set_syntax('XML')
         output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
-        for row in datagrid:
+        for row in data:
             output_text += '{i}<row>{n}'
-            for header in self.headers:
+            for header in data.fieldnames:
                 item = row[header] or ""
                 output_text += '{i}{i}<{1}>{0}</{1}>{n}'.format(item, header, i=self.indent, n=self.newline)
 
@@ -567,16 +562,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace').decode('ascii', 'xmlcharrefreplace')
 
-    def xml_properties(self, datagrid):
+    def xml_properties(self, data):
         """XML properties converter"""
 
         self.set_syntax('XML')
         output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
-        for row in datagrid:
+        for row in data:
             row_list = []
 
-            for header in self.headers:
+            for header in data.fieldnames:
                 item = row[header] or ""
                 row_list.append('{0}="{1}"'.format(header, item))
                 row_text = " ".join(row_list)
@@ -587,14 +582,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace').decode('ascii', 'xmlcharrefreplace')
 
-    def text_table(self, datagrid):
+    def text_table(self, data):
         """text table converter"""
         self.set_syntax('Text', 'Plain Text')
         output_text, divline, field_length, _datagrid = '|', '+', {}, []
 
-        _datagrid = [row for row in datagrid]
+        _data = [x for x in data]
 
-        for header in self.headers:
+        for header in data.fieldnames:
             length = len(header) + 1  # Add 1 to account for end-padding
 
             for row in _datagrid:
@@ -614,7 +609,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         else:
             output_text = divline
 
-        for row in _datagrid:
+        for row in _data:
             row_text = '|'
 
             for header in self.headers:
