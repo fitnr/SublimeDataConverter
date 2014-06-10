@@ -1,21 +1,28 @@
 {
+  // Should be either true, "sniff" or "never"
   // When true, the first row is treated as the header row
-  // Set to false to always sniff for headers (sniffing isn't perfect!)
-  "assume_headers": true,
+  // When "sniff", DataConverter will sniff for headers (sniffing isn't perfect)
+  // When "never", DataConverter will use default headers looks like [val1, val2, ...]
+  "headers": "sniff",
 
-  // If false: Defaults to the OS line separator, which is "\r" in Windows.
-  "line_sep": "\n",
+  // Set to either a character or False. When false, DataConverter uses the OS line separator, which is "\r" in Windows.
+  "line_sep": false,
 
   // Check the python docs for a description of how to define a dialect
-  "dialects": {
-    "example": {
-      "delimiter": ",",
-      "quotechar": "\""
-    }
-  },
-
   // https://docs.python.org/3.3/library/csv.html#dialects-and-formatting-parameters
   // Python's csv reader is hard-coded to recognise either '\r' or '\n' as end-of-line, and ignores lineterminator.
+  // "dialects": {
+  //   "example": {
+  //     "delimiter": ",",
+  //     "quotechar": "\"",
+  //     "lineterminator": "\r\n",
+  //     "doublequote": 0,
+  //     "skipinitialspace": 0,
+  //     "strict": 0,
+  //     "quoting": 0
+  //   }
+  // },
+
   // Could be one of the dialects defined above, or one defined in the csv module (e.g. 'excel', 'excel_tab').
   // When false or blank, DataConverter tries to detect the dialect, which isn't 100% reliable.
   // "use_dialect": "example",

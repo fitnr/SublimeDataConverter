@@ -42,10 +42,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             selection = self.view.substr(sel)
             sample = selection[:1024]
 
-            dialect = self.sniff(sample)
-            headers = self.assign_headers(sample, dialect)
+            # CSV dialect
+            if not self.dialect:
+                self.dialect = self.sniff(sample)
+
+            print('DataConverter: using dialect', self.dialect)
+            
+            headers = self.assign_headers(sample, self.dialect)
             #  This also assigns types (for typed formats)
-            data = self.import_csv(selection, headers, dialect)
+            data = self.import_csv(selection, headers, self.dialect)
 
             # Run converter
             converted = self.converter(data)
@@ -116,82 +121,103 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.indent = "\t"
 
         # HTML characters
-        self.html_utf8 = self.settings.get('html_utf8', False)
+        self.html_utf8 = self.settings.get('html_utf8', True)
 
-        # CSV dialect
         if (self.settings.get('use_dialect')):
-            dialectname = self.settings.get('use_dialect')
-            try:
-                self.dialect = csv.get_dialect(dialectname)
-            except Exception:
-                user_dialects = self.settings.get('dialects')
-                print("couldn't find ", dialectname)
-
-                try:
-                    try:
-                        user_dialects[dialectname]["delimiter"] = bytes(user_dialects[dialectname]["delimiter"][0])
-                    except Exception:
-                        pass
-                    try:
-                        user_dialects[dialectname]["quotechar"] = bytes(user_dialects[dialectname]["quotechar"][0])
-                    except Exception:
-                        pass
-
-                    csv.register_dialect(dialectname, **user_dialects[dialectname])
-                    self.dialect = csv.get_dialect(dialectname)
-                except Exception:
-                    self.dialect = None
-                    print('DataConverter could not find', dialectname, ". Will try to sniff for a dialect")
+            self.dialect = self.set_dialect()
         else:
             self.dialect = None
 
-    def sniff(self, sample):
-        if self.dialect:
-            return self.dialect
+    def set_dialect(self):
+        dialectname = self.settings.get('use_dialect')
+        try:
+            csv.get_dialect(dialectname)
+            return dialectname
+        except Exception:
+            user_dialects = self.settings.get('dialects')
 
         try:
+            csv.register_dialect(dialectname, **user_dialects[dialectname])
+            print("DataConverter: Using custom dialect", dialectname)
+            return dialectname
+
+        except Exception:
+            print("DataConverter: Couldn't register custom dialect named", dialectname)
+            return None
+        
+    def sniff(self, sample):
+        try:
             dialect = csv.Sniffer().sniff(sample)
+            csv.register_dialect('sniffed', dialect)
             print('DataConverter is using this delimiter:', dialect.delimiter)
-            return dialect
+            return 'sniffed'
+
         except Exception as e:
             print("DataConverter had trouble sniffing:", e)
 
             delimiter = self.settings.get('delimiter', ',')
 
-            print('DataConverter: Going to go ahead with the default delimiter: "'+ delimiter +'"')
+            print('DataConverter: Using the default delimiter: "'+ delimiter +'"')
             print('DataConverter: You can change the default delimiter in the settings file.')
             
             delimiter = bytes(delimiter, 'utf-8')  # dialect definition takes a 1-char bytestring
 
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
-                return csv.get_dialect('barebones')
+                return 'barebones'
 
             except Exception as e:
-                return csv.get_dialect('excel')
+                return 'excel'
 
     def assign_headers(self, sample, dialect):
         '''Mess with headers, merging and stripping as needed.'''
-        firstrow = sample.splitlines().pop(0).split(dialect.delimiter)
+        delimiter = csv.get_dialect(dialect).delimiter
+        firstrow = sample.splitlines().pop(0).split(delimiter)
+        header_setting = self.settings.get('headers')
 
-        sample = sample.encode('ascii', 'ignore')  # The csv sniffer doesn't like unicode!
-        if self.settings.get('assume_headers', None) or csv.Sniffer().has_header(sample):
-            headers = firstrow
+        if header_setting is True:
             self.settings.set('has_header', True)
 
-            # Replace spaces in the header names for some formats.
-            if self.settings.get('mergeheaders', False) is True:
-                hj = self.settings.get('header_joiner', '')
-                headers = [x.replace(' ', hj) for x in headers]
-
-            if self.settings.get('strip_quotes', None):
-                headers = [j.strip('"\'') for j in headers]
+        # Using ['val1', 'val2', ...] if no headers
+        elif header_setting is 'never':
+            self.settings.set('has_header', False)
 
         else:
-            self.settings.set('has_header', False)
+            # If not told to try definitely use headers or definitely not, we sniff for them.
+            # Sniffing isn't perfect, especially with short data sets and strange delimiters
+            try:
+                sniffed_headers = csv.Sniffer().has_header(sample)
+
+                if sniffed_headers:
+                    self.settings.set('has_header', True)
+                    print("DataConverter: CSV Sniffer found headers")
+                else:
+                    self.settings.set('has_header', False)
+                    print("DataConverter: CSV Sniffer didn't find headers")
+
+            except Exception:
+                print("DataConverter: CSV module had trouble sniffing for headers. Assuming they exist.")
+                print("DataConverter: Set 'headers = false' in the settings to disable.")
+                self.settings.set('has_header', True)
+
+
+        if self.settings.get('has_header', True):
+            headers = firstrow
+        else:
             headers = ["val" + str(x) for x in range(len(firstrow))]
 
-        return headers
+        return self.format_headers(headers)
+
+    def format_headers(self, headers):
+        # Replace spaces in the header names for some formats.
+        if self.settings.get('mergeheaders', False) is True:
+            hj = self.settings.get('header_joiner', '_')
+            headers = [x.replace(' ', hj) for x in headers]
+
+        if self.settings.get('strip_quotes', True):
+            headers = [j.strip('"\'') for j in headers]
+
+        return headers        
 
     def import_csv(self, selection, headers, dialect):
         # Remove header from entries that came with one.
