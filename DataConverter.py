@@ -407,7 +407,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def gherkin(self, data):
         '''Cucumber/Gherkin converter'''
-        self.set_syntax('Gherkin')
+        self.set_syntax('Cucumber', 'Cucumber Steps')
         output = "|"
 
         for header in data.fieldnames:
