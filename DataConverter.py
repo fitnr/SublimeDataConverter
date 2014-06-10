@@ -423,7 +423,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def gherkin(self, data):
         '''Cucumber/Gherkin converter'''
-        self.syntax = PACKAGES + '/Gherkin/Gherkin.tmLanguage'
+        self.syntax = PACKAGES + '/Cucumber/Cucumber Steps.tmLanguage'
         output = "|"
 
         for header in data.fieldnames:
