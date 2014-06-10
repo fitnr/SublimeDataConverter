@@ -10,32 +10,19 @@ import sublime
 import sublime_plugin
 import csv
 import os
-import StringIO
+import re
+try:
+    import io
+except Exception as e:
+    import StringIO as io
 
-PACKAGES = sublime.packages_path()
 
-
-def UnicodeDictReader(data, encoding='utf-8', **kwargs):
-    '''Adapted from:
-    http://stackoverflow.com/questions/5478659/python-module-like-csv-dictreader-with-full-utf8-support'''
-    csv_reader = csv.DictReader(data, **kwargs)
-
-    # Unlike the example, we know that our field names are already unicode
-    # So need not decode them.
-    for row in csv_reader:
-        y = dict()
-        print row
-        for k, v in row.iteritems():
-            if v is None:
-                v = ""
-
-            # Can't imagine when this would happen...
-            if k not in csv_reader.fieldnames:
-                continue
-
-            y[k] = v.decode(encoding)
-
-        yield y
+# Borrowed from Apply Syntax
+def sublime_format_path(pth):
+    m = re.match(r"^([A-Za-z]{1}):(?:/|\\)(.*)", pth)
+    if sublime.platform() == "windows" and m is not None:
+        pth = m.group(1) + "/" + m.group(2)
+    return pth.replace("\\", "/")
 
 
 class DataConverterCommand(sublime_plugin.TextCommand):
@@ -44,7 +31,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         try:
             self.get_settings(kwargs)
         except Exception as e:
-            print "DataConverter: error fetching settings. Did you specify a format?", e
+            print("DataConverter: error fetching settings. Did you specify a format?", e)
             return
 
         if self.view.sel()[0].empty():
@@ -54,14 +41,18 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for sel in self.view.sel():
             selection = self.view.substr(sel)
             sample = selection[:1024]
-            self.dialect = self.sniff(sample)
-            # Having separate headers and types lists is a bit clumsy,
-            # but a dict wouldn't keep track of the order of the fields.
-            # A slightly better way would be to use an OrderedDict, but this is more compatible with older Pythons.
 
-            self.headers = self.assign_headers(sample)
+            # CSV dialect
+            if not self.dialect:
+                self.dialect = self.sniff(sample)
 
-            data = self.import_csv(selection)
+            print('DataConverter: using dialect', self.dialect)
+            
+            headers = self.assign_headers(sample, self.dialect)
+            #  This also assigns types (for typed formats)
+            data = self.import_csv(selection, headers, self.dialect)
+
+            # Run converter
             converted = self.converter(data)
             self.view.replace(edit, sel, converted)
             deselect_flag = False
@@ -94,7 +85,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             'javascript',
             'mysql',
             'xml',
-            'xml_properties'
+            'xml_properties',
+            'yaml'
         ]
         mergeheaders = kwargs['format'] in no_space_formats
         self.settings.set('mergeheaders', mergeheaders)
@@ -110,6 +102,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "wiki"
             "xml",
             "xml_properties",
+            "yaml"
         ]
         # Don't like having 'not' in this expression, but it makes more sense to use 'typed' from here on out
         # And it's less error prone to use the (smaller) list of untyped formats
@@ -123,103 +116,126 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # Indentation
         if (self.view.settings().get('translate_tabs_to_spaces')):
-            self.indent = u" " * int(self.view.settings().get('tab_size', 4))
+            self.indent = " " * int(self.view.settings().get('tab_size', 4))
         else:
-            self.indent = u"\t"
+            self.indent = "\t"
 
         # HTML characters
-        self.html_utf8 = self.settings.get('html_utf8', False)
+        self.html_utf8 = self.settings.get('html_utf8', True)
 
-        # CSV dialect
         if (self.settings.get('use_dialect')):
-            dialectname = self.settings.get('use_dialect')
-            try:
-                self.dialect = csv.get_dialect(dialectname)
-            except Exception:
-                user_dialects = self.settings.get('dialects')
-
-                try:
-                    try:
-                        user_dialects[dialectname]["delimiter"] = bytes(user_dialects[dialectname]["delimiter"][0])
-                    except Exception:
-                        pass
-                    try:
-                        user_dialects[dialectname]["quotechar"] = bytes(user_dialects[dialectname]["quotechar"][0])
-                    except Exception:
-                        pass
-
-                    csv.register_dialect(dialectname, **user_dialects[dialectname])
-                    self.dialect = csv.get_dialect(dialectname)
-                except Exception:
-                    self.dialect = None
-                    print 'DataConverter could not find', dialectname, ". Will try to sniff for a dialect"
+            self.dialect = self.set_dialect()
         else:
             self.dialect = None
 
-    def sniff(self, sample):
-        if self.dialect:
-            return self.dialect
+    def set_dialect(self):
+        dialectname = self.settings.get('use_dialect')
+        try:
+            csv.get_dialect(dialectname)
+            return dialectname
+        except Exception:
+            user_dialects = self.settings.get('dialects')
 
         try:
+            csv.register_dialect(dialectname, **user_dialects[dialectname])
+            print("DataConverter: Using custom dialect", dialectname)
+            return dialectname
+
+        except Exception:
+            print("DataConverter: Couldn't register custom dialect named", dialectname)
+            return None
+
+    def sniff(self, sample):
+        try:
             dialect = csv.Sniffer().sniff(sample)
-            print 'DataConverter is using this delimiter:', dialect.delimiter
-            return dialect
+            csv.register_dialect('sniffed', dialect)
+            print('DataConverter is using this delimiter:', dialect.delimiter)
+            return 'sniffed'
+
         except Exception as e:
-            print "DataConverter had trouble sniffing:", e
+            print("DataConverter had trouble sniffing:", e)
+
             delimiter = self.settings.get('delimiter', ',')
-            delimiter = bytes(delimiter)  # dialect definition takes a 1-char bytestring
+
+            print('DataConverter: Using the default delimiter: "'+ delimiter +'"')
+            print('DataConverter: You can change the default delimiter in the settings file.')
+
+            delimiter = bytes(delimiter, 'utf-8')  # dialect definition takes a 1-char bytestring
+
             try:
                 csv.register_dialect('barebones', delimiter=delimiter)
-                return csv.get_dialect('barebones')
+                return 'barebones'
 
             except Exception as e:
-                return csv.get_dialect('excel')
-
-    def assign_headers(self, sample):
+                return 'excel'
+ 
+    def assign_headers(self, sample, dialect):
         '''Mess with headers, merging and stripping as needed.'''
-        firstrow = sample.splitlines().pop(0).split(self.dialect.delimiter)
+        delimiter = csv.get_dialect(dialect).delimiter
+        firstrow = sample.splitlines().pop(0).split(delimiter)
+        header_setting = self.settings.get('headers')
 
-        sample = sample.encode('ascii', 'ignore')  # The csv sniffer doesn't like unicode!
-        if self.settings.get('assume_headers', None) or csv.Sniffer().has_header(sample):
-            headers = firstrow
+        if header_setting is True:
             self.settings.set('has_header', True)
 
-            # Replace spaces in the header names for some formats.
-            if self.settings.get('mergeheaders', False) is True:
-                hj = self.settings.get('header_joiner', '')
-                headers = [x.replace(' ', hj) for x in headers]
-
-            if self.settings.get('strip_quotes', None):
-                headers = [j.strip('"\'') for j in headers]
+        # Using ['val1', 'val2', ...] if no headers
+        elif header_setting is 'never':
+            self.settings.set('has_header', False)
 
         else:
-            self.settings.set('has_header', False)
+            # If not told to try definitely use headers or definitely not, we sniff for them.
+            # Sniffing isn't perfect, especially with short data sets and strange delimiters
+            try:
+                sniffed_headers = csv.Sniffer().has_header(sample)
+
+                if sniffed_headers:
+                    self.settings.set('has_header', True)
+                    print("DataConverter: CSV Sniffer found headers")
+                else:
+                    self.settings.set('has_header', False)
+                    print("DataConverter: CSV Sniffer didn't find headers")
+
+            except Exception:
+                print("DataConverter: CSV module had trouble sniffing for headers. Assuming they exist.")
+                print("DataConverter: Set 'headers = false' in the settings to disable.")
+                self.settings.set('has_header', True)
+
+
+        if self.settings.get('has_header', True):
+            headers = firstrow
+        else:
             headers = ["val" + str(x) for x in range(len(firstrow))]
+
+        return self.format_headers(headers)
+
+    def format_headers(self, headers):
+        # Replace spaces in the header names for some formats.
+        if self.settings.get('mergeheaders', False) is True:
+            hj = self.settings.get('header_joiner', '_')
+            headers = [x.replace(' ', hj) for x in headers]
+
+        if self.settings.get('strip_quotes', True):
+            headers = [j.strip('"\'') for j in headers]
 
         return headers
 
-    def import_csv(self, selection):
+    def import_csv(self, selection, headers, dialect):
         # Remove header from entries that came with one.
         if self.settings.get('has_header', False) is True:
             selection = selection[selection.find(self.newline):]
 
-        selection = selection.encode('utf-8')
-        csvIO = StringIO.StringIO(selection)
+        csvIO = io.StringIO(selection)
 
-        reader = UnicodeDictReader(
+        reader = csv.DictReader(
             csvIO,
-            encoding='utf-8',
-            fieldnames=self.headers,
-            dialect=self.dialect)
+            fieldnames=headers,
+            dialect=dialect)
 
         if self.settings.get('typed', False) is True:
             # Another reader for checking field types.
-            try:
-                typerIO = StringIO.StringIO(selection)
-                typer = csv.DictReader(typerIO, fieldnames=self.headers, dialect=self.dialect)
-                self.types = self.parse(typer, self.headers)
-            except:
-                pass
+            typerIO = io.StringIO(selection)
+            typer = csv.DictReader(typerIO, fieldnames=headers, dialect=dialect)
+            self.types = self.parse(typer, headers)
 
         return reader
 
@@ -229,17 +245,30 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.view.sel().clear()
         self.view.sel().add(sublime.Region(top, top))
 
+    def set_syntax(self, path, file_name=False):
+        if not file_name:
+            file_name = path
+
+        file_name = file_name + '.tmLanguage'
+        new_syntax = sublime_format_path('/'.join(['Packages', path, file_name]))
+
+        current_syntax = self.view.settings().get('syntax')
+
+        if new_syntax != current_syntax:
+            sublime.load_resource(new_syntax)
+            self.view.set_syntax_file(new_syntax)
+
     # data type parser
     # ==================
-
     def parse(self, reader, headers):
         """ Return a list containing a best guess for the types of data in each column. """
         output_types, types = [], []
 
         for n in range(10):
             try:
-                row = reader.next()
+                row = next(reader)
             except:
+                print('Error parsing')
                 break
 
             tmp = []
@@ -251,7 +280,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             types.append(tmp)
 
         #rotate the array
-        types = zip(*types)
+        types = list(zip(*types))
 
         for header, type_list in zip(headers, types):
             if str in type_list:
@@ -261,7 +290,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             else:
                 output_types.append(int)
 
-        print 'DataConverter found these output types:', output_types
+        print('DataConverter found these output types:', output_types)
         return output_types
 
     def get_type(self, datum):
@@ -281,62 +310,61 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     # Note that converters should assign a syntax file path to self.syntax.
 
-    def type_loop(self, row, form, nulltxt='null'):
+    def type_loop(self, row, headers, formt, nulltxt='null'):
         """
         Helper loop for checking types as we write out a row.
         Strings get quoted, floats and ints don't.
         row is a dictionary returned from DictReader
-        Returns a line of code in format form (e.g. "{0}=>{1}, ")
+        Returns a line of code formatted with `formt` (e.g. "{0}=>{1}, ")
 
         """
-        out = u''
-        for key, typ in zip(self.headers, self.types):
+        out = ''
+
+        for key, typ in zip(headers, self.types):
             if row[key] is None:
                 txt = nulltxt
             elif typ == str:
-                txt = u'"' + row[key] + '"'
+                txt = '"' + row[key] + '"'
             else:
                 txt = row[key]
 
-            out += form.format(key, txt)
+            out += formt.format(key, txt)
         return out
 
-    def actionscript(self, datagrid):
+    def actionscript(self, data):
         """Actionscript converter"""
-        self.syntax = PACKAGES + '/ActionScript/ActionScript.tmLanguage'
-        output = u"["
+
+        self.set_syntax('ActionScript')
+
+        output = "["
 
         #begin render loops
-        for row in datagrid:
+        for row in data:
             output += "{"
-            output += self.type_loop(row, u'{0}:{1},')
+            output += self.type_loop(row, data.fieldnames, '{0}:{1},')
 
             output = output[0:-1] + "}" + "," + self.newline
 
         return output[:-2] + "];"
 
     # ASP / VBScript
-    def asp(self, datagrid):
-        self.syntax = PACKAGES + '/ASP/ASP.tmLanguage'
+    def asp(self, data):
+        self.set_syntax('ASP')
         #comment, comment_end = "'", ""
-        output, r = u"", 0
-        zipper = zip(range(len(self.headers)), self.headers, self.types)
-        #print self.headers, self.types
+        output, r = "", 0
 
-        #begin render loop
-        for row in datagrid:
+        for row in data:
 
-            for c, key, item_type in zipper:
-
+            for c, key, item_type in zip(range(len(data.fieldnames)), data.fieldnames, self.types):
                 if item_type == str:
                     row[key] = '"' + (row[key] or "") + '"'
                 if item_type is None:
                     row[key] = 'null'
 
-                output += u'myArray({0},{1}) = {2}'.format(c, r, row[key] + self.newline)
+                output += 'myArray({0},{1}) = {2}'.format(c, r, row[key] + self.newline)
             r = r + 1
 
-        dim = u'Dim myArray({0},{1}){2}'.format(c, r - 1, self.newline)
+        dim = 'Dim myArray({0},{1}){2}'.format(c, r - 1, self.newline)
 
         return dim + output
 
@@ -344,166 +372,173 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """Helper for HTML converter"""
         return "{i}{i}<tr>{n}" + row + "{i}{i}</tr>{n}"
 
-    def html(self, datagrid):
-        """HTML Table converter"""
-        self.syntax = PACKAGES + '/HTML/HTML.tmLanguage'
-        thead, tbody = u"", u""
+    def html(self, data):
+        """HTML Table converter.
+        We use {i} and {n} as shorthand for self.indent and self.newline."""
+
+        self.set_syntax('HTML')
+        thead, tbody = "", ""
 
         # Render the table head, if there is one
         if self.settings.get('has_header') is True:
-            for header in self.headers:
-                thead += u'{i}{i}{i}<th>' + header + '</th>{n}'
+            for header in data.fieldnames:
+                thead += '{i}{i}{i}<th>' + header + '</th>{n}'
 
-            thead = u'{i}<thead>{n}' + self.tr(thead) + '</thead>{n}'
+            thead = '{i}<thead>{n}' + self.tr(thead) + '</thead>{n}'
         else:
-
             thead = ''
 
         # Render table rows
-        for row in datagrid:
-            rowText = u""
+        for row in data:
+            rowText = ""
 
-            # Sadly, dictReader doesn't always preserve row order,
-            # so we loop through the headers instead.
-            for key in self.headers:
-                rowText += u'{i}{i}{i}<td>' + (row[key] or "") + u'</td>{n}'
+            for key in data.fieldnames:
+                rowText += '{i}{i}{i}<td>' + (row[key] or "") + '</td>{n}'
 
             tbody += self.tr(rowText)
 
-        table = u"<table>{n}" + thead
-        table += u"{i}<tbody>{n}" + tbody + u"</tbody>{n}</table>"
+        table = "<table>{n}" + thead
+        table += "{i}<tbody>{n}" + tbody + "{i}</tbody>{n}</table>"
 
         if self.html_utf8:
             return table.format(i=self.indent, n=self.newline)
         else:
             return table.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
 
-    def javascript(self, datagrid):
+    def javascript(self, data):
         """JavaScript object converter"""
-        self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
-        output = u'var dataConverter = [' + self.newline
 
-        #begin render loop
-        for row in datagrid:
-            output += self.indent + "{" + self.type_loop(row, u'{0}: {1}, ')
+        self.set_syntax('JavaScript')
+        output = 'var dataConverter = [' + self.newline
+
+        for row in data:
+            output += self.indent + "{" + self.type_loop(row, data.fieldnames, '{0}: {1}, ')
             output = output[:-2] + "}," + self.newline
 
         return output[:-2] + self.newline + '];'
 
-    def json(self, datagrid):
+    def json(self, data):
         """JSON properties converter"""
         import json
-        self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
+        self.set_syntax('JavaScript', 'JSON')
 
-        return json.dumps([row for row in datagrid])
+        return json.dumps([row for row in data])
 
-    def json_columns(self, datagrid):
+    def json_columns(self, data):
         """JSON Array of Columns converter"""
         import json
-        self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
+        self.set_syntax('JavaScript', 'JSON')
         colDict = {}
 
-        for row in datagrid:
-            for key, item in row.iteritems():
+        for row in data:
+            for key, item in row.items():
                 if key not in colDict:
                     colDict[key] = []
                 colDict[key].append(item)
         return json.dumps(colDict)
 
-    def json_rows(self, datagrid):
+    def json_rows(self, data):
         """JSON Array of Rows converter"""
         import json
-        self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
+        self.set_syntax('JavaScript', 'JSON')
         rowArrays = []
 
-        for row in datagrid:
+        for row in data:
             itemlist = []
-            for item in row.itervalues():
+            for item in row.values():
                 itemlist.append(item)
             rowArrays.append(itemlist)
 
         return json.dumps(rowArrays)
 
-    def mysql(self, datagrid):
-        """MySQL converter"""
-        self.syntax = PACKAGES + '/SQL/SQL.tmLanguage'
+    def mysql(self, data):
+        """MySQL converter
+        We use {i} and {n} as shorthand for self.indent and self.newline."""
 
-        table = u'DataConverter'
+        self.set_syntax('SQL')
+
+        table = 'DataConverter'
 
         # CREATE TABLE statement
-        create = u'CREATE TABLE ' + table + '({n}'
-        create += self.indent + u"id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,{n}"
+        create = 'CREATE TABLE ' + table + '({n}'
+        create += self.indent + "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,{n}"
 
         # INSERT TABLE Statement
-        insert = u'INSERT INTO ' + table + " {n}{i}("
+        insert = 'INSERT INTO ' + table + " {n}{i}("
 
         # VALUES list
-        values = u"VALUES" + self.newline
+        values = "VALUES" + self.newline
 
         # Loop through headers
-        for header, typ in zip(self.headers, self.types):
+        for header, typ in zip(data.fieldnames, self.types):
             if typ == str:
-                typ = u'VARCHAR(255)'
+                typ = 'VARCHAR(255)'
             elif typ == float:
-                typ = u'FLOAT'
+                typ = 'FLOAT'
             elif typ == int:
-                typ = u'INT'
+                typ = 'INT'
 
             insert += header + ","
 
-            create += u'{i}' + header + " " + typ + "," + self.newline
+            create += '{i}' + header + " " + typ + "," + self.newline
 
         create = create[:-2] + '{n}'  # Remove the comma and newline
-        create += u") CHARACTER SET utf8;{n}"
+        create += ") CHARACTER SET utf8;{n}"
 
-        insert = insert[:-1] + u") {n}"
+        insert = insert[:-1] + ") {n}"
 
-        # loop through rows
-        for row in datagrid:
-            values += self.indent + u"("
-            values += self.type_loop(row, form=u'{1},', nulltxt='NULL')
+        for row in data:
+            values += self.indent + "("
+            values += self.type_loop(row, form='{1},', nulltxt='NULL')
 
-            values = values[:-1] + u'),' + self.newline
+            values = values[:-1] + '),' + self.newline
 
         output = create + insert + values[:-2] + ';'
         return output.format(i=self.indent, n=self.newline)
 
-    def perl(self, datagrid):
+    def perl(self, data):
         """Perl converter"""
-        self.syntax = PACKAGES + '/Perl/Perl.tmLanguage'
-        output = u"["
+        self.set_syntax('Perl')
+        output = "["
 
-        #begin render loop
-        for row in datagrid:
+        for row in data:
             output += "{"
-            output += self.type_loop(row, u'"{0}"=>{1}, ', nulltxt='undef')
+            output += self.type_loop(row, data.fieldnames, '"{0}"=>{1}, ', nulltxt='undef')
 
             output = output[:-2] + "}," + self.newline
 
         return output[:-2] + "];"
 
-    def php(self, datagrid):
-        """PHP converter"""
-        self.syntax = PACKAGES + '/PHP/PHP.tmLanguage'
+    def php(self, data, array_open, array_close):
+        """General PHP Converter"""
+        self.set_syntax('PHP')
         #comment, comment_end = "//", ""
-        output = u"$DataConverter = array(" + self.newline
 
-        #begin render loop
-        for row in datagrid:
-            output += self.indent + u"array("
-            output += self.type_loop(row, u'"{0}"=>{1}, ')
+        output = "$DataConverter = " + array_open + self.newline
 
-            output = output[:-2] + u")," + self.newline
+        for row in data:
+            output += self.indent + array_open
+            output += self.type_loop(row, data.fieldnames, '"{0}"=>{1}, ')
 
-        return output[:-1] + self.newline + u");"
+            output = output[:-2] + array_close + "," + self.newline
 
-    def python_dict(self, datagrid):
+        return output[:-1] + self.newline + array_close + ";"
+
+    def php4(self, data):
+        """Older-style PHP converter"""
+        return self.php(data, 'array(', ')')
+
+    def php54(self, data):
+        """PHP 5.4 converter"""
+        return self.php(data, '[', ']')
+
+    def python_dict(self, data):
         """Python dict converter"""
-        self.syntax = PACKAGES + '/Python/Python.tmLanguage'
+        self.set_syntax('Python')
         fields = []
-        for row in datagrid:
+        for row in data:
             outrow = {}
-            for k, t in zip(self.headers, self.types):
+            for k, t in zip(data.fieldnames, self.types):
                 if t == int:
                     outrow[k] = int(row[k])
                 elif t == float:
@@ -514,13 +549,13 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return repr(fields)
 
-    def python_list(self, datagrid):
+    def python_list(self, data):
         """Python list of lists converter"""
-        self.syntax = PACKAGES + '/Python/Python.tmLanguage'
+        self.set_syntax('Python')
         fields = []
-        for row in datagrid:
+        for row in data:
             outrow = []
-            for k, t in zip(self.headers, self.types):
+            for k, t in zip(data.fieldnames, self.types):
                 if t == int:
                     outrow.append(int(row[k]))
                 elif t == float:
@@ -528,111 +563,121 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 else:
                     outrow.append(row[k])
             fields.append(outrow)
-        return '# headers = ' + repr(self.headers) + self.newline + repr(fields)
+        return '# headers = ' + repr(data.fieldnames) + self.newline + repr(fields)
 
-    def ruby(self, datagrid):
+    def ruby(self, data):
         """Ruby converter"""
-        self.syntax = PACKAGES + '/Ruby/Ruby.tmLanguage'
+        self.set_syntax('Ruby')
         #comment, comment_end = "#", ""
-        output = u"["
+        output = "["
 
-        #begin render loop
-        for row in datagrid:
+        for row in data:
             output += "{"
-            output += self.type_loop(row, u'"{0}"=>{1}, ', nulltxt='nil')
+            output += self.type_loop(row, data.fieldnames, '"{0}"=>{1}, ', nulltxt='nil')
 
             output = output[:-2] + "}," + self.newline
 
         return output[:-2] + "];"
 
-    def xml(self, datagrid):
+    def xml(self, data):
         """XML Nodes converter"""
-        self.syntax = PACKAGES + '/XML/XML.tmLanguage'
-        output_text = u'<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
+        self.set_syntax('XML')
+        output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
-        #begin render loop
-        for row in datagrid:
-            output_text += u'{i}<row>{n}'
-            for header in self.headers:
+        for row in data:
+            output_text += '{i}<row>{n}'
+            for header in data.fieldnames:
                 item = row[header] or ""
-                output_text += u'{i}{i}<{1}>{0}</{1}>{n}'.format(item, header, i=self.indent, n=self.newline)
+                output_text += '{i}{i}<{1}>{0}</{1}>{n}'.format(item, header, i=self.indent, n=self.newline)
 
-            output_text += u"{i}</row>{n}"
+            output_text += "{i}</row>{n}"
 
-        output_text += u"</rows>"
+        output_text += "</rows>"
 
-        return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
+        return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace').decode('ascii', 'xmlcharrefreplace')
 
-    def xml_properties(self, datagrid):
+    def xml_properties(self, data):
         """XML properties converter"""
-        self.syntax = PACKAGES + '/XML/XML.tmLanguage'
-        output_text = u'<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
-        #begin render loop
-        for row in datagrid:
+        self.set_syntax('XML')
+        output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
+
+        for row in data:
             row_list = []
 
-            for header in self.headers:
+            for header in data.fieldnames:
                 item = row[header] or ""
-                row_list.append(u'{0}="{1}"'.format(header, item))
-                row_text = u" ".join(row_list)
+                row_list.append('{0}="{1}"'.format(header, item))
+                row_text = " ".join(row_list)
 
-            output_text += u"{i}<row " + row_text + "></row>{n}"
+            output_text += "{i}<row " + row_text + "></row>{n}"
 
-        output_text += u"</rows>"
+        output_text += "</rows>"
 
-        return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
+        return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace').decode('ascii', 'xmlcharrefreplace')
 
-    def text_table(self, datagrid):
+    def text_table(self, data):
         """text table converter"""
-        self.syntax = PACKAGES + '/Text/Plain text.tmLanguage'
-        output_text, divline, field_length, _datagrid = u'|', u'+', {}, []
+        self.set_syntax('Text', 'Plain Text')
+        output_text, divline, field_length, _data = '|', '+', [], []
 
-        _datagrid = [row for row in datagrid]
+        _data = [x for x in data]
 
-        for header in self.headers:
+        for header in data.fieldnames:
             length = len(header) + 1  # Add 1 to account for end-padding
 
-            for row in _datagrid:
+            for row in _data:
                 try:
                     length = max(length, len(row[header]) + 1)
                 except:
                     pass
-            field_length[header] = length
-            divline += '-' * (field_length[header] + 1) + '+'
 
-            output_text += ' ' + header + ' ' * (field_length[header] - len(header)) + '|'
+            field_length.append(length)
+            divline += '-' * (length + 1) + '+'
+            output_text += ' ' + header + ' ' * (length - len(header)) + '|'
 
-        divline += u'{n}'
+        divline += '{n}'
 
         if self.settings.get('has_header', False):
-            output_text = u'{0}{1}{{n}}{0}'.format(divline, output_text)
+            output_text = '{0}{1}{{n}}{0}'.format(divline, output_text)
         else:
             output_text = divline
 
-        #begin render loop
-        for row in _datagrid:
-            row_text = u'|'
+        for row in _data:
+            row_text = '|'
 
-            for header in self.headers:
+            for header, length in zip(data.fieldnames, field_length):
                 item = row[header] or ""
-                row_text += u' ' + item + ' ' * (field_length[header] - len(item)) + '|'
+                row_text += ' ' + item + ' ' * (length - len(item)) + '|'
 
             output_text += row_text + "{n}"
 
         output_text += divline
         return output_text.format(n=self.newline)
 
-    def yaml(self, datagrid):
-        self.syntax = PACKAGES + '/YAML/YAML.tmLanguage'
+    def yaml(self, data):
+        '''YAML Converter'''
 
-        output_text = u"---" + self.newline
+        #  Set the syntax of the document.
+        #  In ST2 the syntax of this line is different
+        self.set_syntax('YAML')
 
-        for row in datagrid:
-            output_text += u"-" + self.newline
-            for header in self.headers:
-                if row[header]:
+        #  The DataConverterCommand has two useful values
+        #  for formatting text: self.newline and self.indent
+        #  They respect the user's text settings
+        output_text = "---" + self.newline
+
+        #  data is a csv.reader object
+        #  We use the `.fieldnames` parameter to keep header names straight
+        #  For typed formats requiring, self.types is a list of the sniffed Python types of each column
+        for row in data:
+            output_text += "-" + self.newline
+            for header in data.fieldnames:
+                try:
                     output_text += "  " + header + ": " + row[header] + self.newline
+                except Exception:
+                    pass
+
             output_text += self.newline
 
         return output_text

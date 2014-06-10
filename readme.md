@@ -40,13 +40,14 @@ or this (JSON):
 * Javascript object
 * MySQL
 * Perl
-* PHP
+* PHP (two formats)
 * Python (list of dicts)
 * Python (list of lists)
 * Ruby
 * text table
 * XML
 * XML (property list)
+* YAML
 
 ### Configuration
 Check out `DataConverter.sublime-settings` for a documented list of options.
@@ -62,8 +63,12 @@ Clone the repository into your Sublime Text 2 packages directory:
     git clone git://github.com/fitnr/SublimeDataConverter.git
 
 ### Without Package Control or Git
-[Go to the download section](http://github.com/fitnr/SublimeDataConverter/downloads) and download the package. Unzip it, rename the folder "DataConverter" and move it into your Sublime Text 2 packages directory (*Preferences > Browse Packages* in the menu).
+Click `Download Zip` above to download the package. Unzip it, rename the folder "DataConverter" and move it into your Sublime Text 2 packages directory (*Preferences > Browse Packages* in the application menu).
 
 ## Problems?
 
 [Submit an issue](https://github.com/fitnr/SublimeDataConverter/issues).
+
+## Contributing
+
+Pull requests with additional formats are encouraged. The YAML converter is well-commented as an introduction to how the package works.

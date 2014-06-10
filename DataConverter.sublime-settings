@@ -1,32 +1,40 @@
 {
+  // Should be either true, "sniff" or "never"
   // When true, the first row is treated as the header row
-  // Set to false to always sniff for headers (sniffing isn't perfect!) 
-  "assume_headers": true,
+  // When "sniff", DataConverter will sniff for headers (sniffing isn't perfect)
+  // When "never", DataConverter will use default headers looks like [val1, val2, ...]
+  "headers": "sniff",
 
-  // If false: Defaults to the OS line separator, which is "\r" in Windows.
-  "line_sep": "\n",
+  // Set to either a character or False. When false, DataConverter uses the OS line separator, which is "\r" in Windows.
+  "line_sep": false,
 
   // Check the python docs for a description of how to define a dialect
-  // http://docs.python.org/2/library/csv.html#csv-fmt-params
-  "dialects": {
-    "example": {
-      "delimiter": ",",
-      "quotechar": "\""
-    }
-  },
+  // https://docs.python.org/3.3/library/csv.html#dialects-and-formatting-parameters
+  // Python's csv reader is hard-coded to recognise either '\r' or '\n' as end-of-line, and ignores lineterminator.
+  // "dialects": {
+  //   "example": {
+  //     "delimiter": ",",
+  //     "quotechar": "\"",
+  //     "lineterminator": "\r\n",
+  //     "doublequote": 0,
+  //     "skipinitialspace": 0,
+  //     "strict": 0,
+  //     "quoting": 0
+  //   }
+  // },
 
-  // Could be one of the dialects defined above, or one defined in the csv module (e.g. 'excel', 'excel_tab'.
+  // Could be one of the dialects defined above, or one defined in the csv module (e.g. 'excel', 'excel_tab').
   // When false or blank, DataConverter tries to detect the dialect, which isn't 100% reliable.
-  // "use_dialect": "example"
+  // "use_dialect": "example",
 
   // Modern HTML served with a proper character encoding can accept UTF-8 characters.
   // If you're using another charset for your html, set this to false.
   // When false, the DataConverter 'to HTML Table' function will escape non-ascii characters (e.g. &ndash; for –)
-  // (By the way, XML is always returned with escaped characters) 
+  // (By the way, XML is always returned with escaped characters)
   "html_utf8": true,
 
   // DataConverter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
-  // This must be one character long. Use "\t" for tab. 
+  // This must be one character long. Use "\t" for tab.
   "delimiter": ",",
 
   // For formats where keys can't have spaces, field names will be joined with this character.
@@ -36,7 +44,7 @@
 
   // Will remove quotes from around the field names in the header.
   // e.g. "id","name" => id,name.
-  // Making false will keep wrapping characters. 
+  // Making false will keep wrapping characters.
   // e.g. "id","name" => '"id"': 1, "'name'": "foo"
   "strip_quotes": true,
 
