@@ -144,7 +144,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         except Exception:
             print("DataConverter: Couldn't register custom dialect named", dialectname)
             return None
-        
+
     def sniff(self, sample):
         try:
             dialect = csv.Sniffer().sniff(sample)
@@ -159,7 +159,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             print('DataConverter: Using the default delimiter: "'+ delimiter +'"')
             print('DataConverter: You can change the default delimiter in the settings file.')
-            
+
             delimiter = bytes(delimiter, 'utf-8')  # dialect definition takes a 1-char bytestring
 
             try:
@@ -168,7 +168,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             except Exception as e:
                 return 'excel'
-
+ 
     def assign_headers(self, sample, dialect):
         '''Mess with headers, merging and stripping as needed.'''
         delimiter = csv.get_dialect(dialect).delimiter
@@ -217,7 +217,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('strip_quotes', True):
             headers = [j.strip('"\'') for j in headers]
 
-        return headers        
+        return headers
 
     def import_csv(self, selection, headers, dialect):
         # Remove header from entries that came with one.
@@ -661,7 +661,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         #  data is a csv.reader object
         #  We use the `.fieldnames` parameter to keep header names straight
-        #  For typed formats requiring, self.types is a list of the sniffed Python types of each column 
+        #  For typed formats requiring, self.types is a list of the sniffed Python types of each column
         for row in data:
             output_text += "-" + self.newline
             for header in data.fieldnames:
