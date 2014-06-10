@@ -49,6 +49,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.headers = self.assign_headers(sample)
 
             data = self.import_csv(selection)
+            # Run converter
             converted = self.converter(data)
             self.view.replace(edit, sel, converted)
             deselect_flag = False
@@ -98,6 +99,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "wiki"
             "xml",
             "xml_properties",
+            "yaml"
         ]
         # Don't like having 'not' in this expression, but it makes more sense to use 'typed' from here on out
         # And it's less error prone to use the (smaller) list of untyped formats
@@ -327,7 +329,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         #comment, comment_end = "'", ""
         output, r = "", 0
 
-        #begin render loop
         for row in datagrid:
 
             for c, key, item_type in zip(range(len(self.headers)), self.headers, self.types):
@@ -348,9 +349,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         return "{i}{i}<tr>{n}" + row + "{i}{i}</tr>{n}"
 
     def html(self, datagrid):
-        """HTML Table converter"""
-        self.set_syntax('HTML')
+        """HTML Table converter.
+        We use {i} and {n} as shorthand for self.indent and self.newline."""
 
+        self.set_syntax('HTML')
         thead, tbody = "", ""
 
         # Render the table head, if there is one
@@ -360,7 +362,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             thead = '{i}<thead>{n}' + self.tr(thead) + '</thead>{n}'
         else:
-
             thead = ''
 
         # Render table rows
@@ -388,7 +389,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('JavaScript')
         output = 'var dataConverter = [' + self.newline
 
-        #begin render loop
         for row in datagrid:
             output += self.indent + "{" + self.type_loop(row, '{0}: {1}, ')
             output = output[:-2] + "}," + self.newline
@@ -430,7 +430,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         return json.dumps(rowArrays)
 
     def mysql(self, datagrid):
-        """MySQL converter"""
+        """MySQL converter
+        We use {i} and {n} as shorthand for self.indent and self.newline."""
+
         self.set_syntax('SQL')
 
         table = 'DataConverter'
@@ -463,7 +465,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         insert = insert[:-1] + ") {n}"
 
-        # loop through rows
         for row in datagrid:
             values += self.indent + "("
             values += self.type_loop(row, form='{1},', nulltxt='NULL')
@@ -478,7 +479,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('Perl')
         output = "["
 
-        #begin render loop
         for row in datagrid:
             output += "{"
             output += self.type_loop(row, '"{0}"=>{1}, ', nulltxt='undef')
@@ -495,7 +495,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         output = "$DataConverter = array(" + self.newline
 
 
-        #begin render loop
         for row in datagrid:
             output += self.indent + "array("
             output += self.type_loop(row, '"{0}"=>{1}, ')
@@ -543,7 +542,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         #comment, comment_end = "#", ""
         output = "["
 
-        #begin render loop
         for row in datagrid:
             output += "{"
             output += self.type_loop(row, '"{0}"=>{1}, ', nulltxt='nil')
@@ -557,7 +555,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('XML')
         output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
-        #begin render loop
         for row in datagrid:
             output_text += '{i}<row>{n}'
             for header in self.headers:
@@ -576,7 +573,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('XML')
         output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
-        #begin render loop
         for row in datagrid:
             row_list = []
 
@@ -618,7 +614,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         else:
             output_text = divline
 
-        #begin render loop
         for row in _datagrid:
             row_text = '|'
 
@@ -631,16 +626,29 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         output_text += divline
         return output_text.format(n=self.newline)
 
-    def yaml(self, datagrid):
+    def yaml(self, data):
+        '''YAML Converter'''
+
+        #  Set the syntax of the document.
+        #  In ST2 the syntax of this line is different
         self.set_syntax('YAML')
 
+        #  The DataConverterCommand has two useful values
+        #  for formatting text: self.newline and self.indent
+        #  They respect the user's text settings
         output_text = "---" + self.newline
 
-        for row in datagrid:
+        #  data is a csv.reader object
+        #  We use the `.fieldnames` parameter to keep header names straight
+        #  For typed formats requiring, self.types is a list of the sniffed Python types of each column 
+        for row in data:
             output_text += "-" + self.newline
-            for header in self.headers:
-                if row[header]:
+            for header in data.fieldnames:
+                try:
                     output_text += "  " + header + ": " + row[header] + self.newline
+                except Exception:
+                    pass
+
             output_text += self.newline
 
         return output_text

@@ -47,6 +47,7 @@ or this (JSON):
 * text table
 * XML
 * XML (property list)
+* YAML
 
 ### Configuration
 Check out `DataConverter.sublime-settings` for a documented list of options.
@@ -67,3 +68,7 @@ Clone the repository into your Sublime Text 2 packages directory:
 ## Problems?
 
 [Submit an issue](https://github.com/fitnr/SublimeDataConverter/issues).
+
+## Contributing
+
+Pull requests with additional formats are encouraged. The YAML converter is well-commented as an introduction to how the package works.
