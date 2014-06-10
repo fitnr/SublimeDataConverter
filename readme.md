@@ -40,7 +40,7 @@ or this (JSON):
 * Javascript object
 * MySQL
 * Perl
-* PHP
+* PHP (two formats)
 * Python (list of dicts)
 * Python (list of lists)
 * Ruby
@@ -63,7 +63,7 @@ Clone the repository into your Sublime Text 2 packages directory:
     git clone git://github.com/fitnr/SublimeDataConverter.git
 
 ### Without Package Control or Git
-[Go to the download section](http://github.com/fitnr/SublimeDataConverter/downloads) and download the package. Unzip it, rename the folder "DataConverter" and move it into your Sublime Text 2 packages directory (*Preferences > Browse Packages* in the menu).
+Click `Download Zip` above to download the package. Unzip it, rename the folder "DataConverter" and move it into your Sublime Text 2 packages directory (*Preferences > Browse Packages* in the application menu).
 
 ## Problems?
 

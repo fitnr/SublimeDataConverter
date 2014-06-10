@@ -509,20 +509,28 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output[:-2] + "];"
 
-    def php(self, data):
-        """PHP converter"""
+    def php(self, data, array_open, array_close):
+        """General PHP Converter"""
         self.set_syntax('PHP')
         #comment, comment_end = "//", ""
 
-        output = "$DataConverter = array(" + self.newline
+        output = "$DataConverter = " + array_open + self.newline
 
         for row in data:
-            output += self.indent + "array("
+            output += self.indent + array_open
             output += self.type_loop(row, data.fieldnames, '"{0}"=>{1}, ')
 
-            output = output[:-2] + ")," + self.newline
+            output = output[:-2] + array_close + "," + self.newline
 
-        return output[:-1] + self.newline + ");"
+        return output[:-1] + self.newline + array_close + ";"
+
+    def php4(self, data):
+        """Older-style PHP converter"""
+        return self.php(data, 'array(', ')')
+
+    def php54(self, data):
+        """PHP 5.4 converter"""
+        return self.php(data, '[', ']')
 
     def python_dict(self, data):
         """Python dict converter"""
