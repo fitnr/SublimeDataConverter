@@ -611,22 +611,22 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def text_table(self, data):
         """text table converter"""
         self.set_syntax('Text', 'Plain Text')
-        output_text, divline, field_length, _datagrid = '|', '+', {}, []
+        output_text, divline, field_length, _data = '|', '+', [], []
 
         _data = [x for x in data]
 
         for header in data.fieldnames:
             length = len(header) + 1  # Add 1 to account for end-padding
 
-            for row in _datagrid:
+            for row in _data:
                 try:
                     length = max(length, len(row[header]) + 1)
                 except:
                     pass
-            field_length[header] = length
-            divline += '-' * (field_length[header] + 1) + '+'
 
-            output_text += ' ' + header + ' ' * (field_length[header] - len(header)) + '|'
+            field_length.append(length)
+            divline += '-' * (length + 1) + '+'
+            output_text += ' ' + header + ' ' * (length - len(header)) + '|'
 
         divline += '{n}'
 
@@ -638,9 +638,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for row in _data:
             row_text = '|'
 
-            for header in self.headers:
+            for header, length in zip(data.fieldnames, field_length):
                 item = row[header] or ""
-                row_text += ' ' + item + ' ' * (field_length[header] - len(item)) + '|'
+                row_text += ' ' + item + ' ' * (length - len(item)) + '|'
 
             output_text += row_text + "{n}"
 
