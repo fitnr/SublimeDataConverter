@@ -421,6 +421,21 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         else:
             return table.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
 
+    def gherkin(self, data):
+        '''Cucumber/Gherkin converter'''
+        self.syntax = PACKAGES + '/Gherkin/Gherkin.tmLanguage'
+        output = "|"
+
+        for header in data.fieldnames:
+            output += header + "\t|"
+
+        output += self.newline
+
+        for row in data:
+            output += "|" + self.type_loop(row, data.fieldnames, "{1}\t|", 'nil') + self.newline
+
+        return output
+
     def javascript(self, data):
         """JavaScript object converter"""
         self.syntax = PACKAGES + '/JavaScript/JavaScript.tmLanguage'
@@ -619,6 +634,47 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         output_text += u"</rows>"
 
         return output_text.format(i=self.indent, n=self.newline).encode('ascii', 'xmlcharrefreplace')
+
+    def xml_illustrator(self, data):
+        '''Convert to Illustrator XML format'''
+        self.syntax = PACKAGES + '/XML/XML.tmLanguage'
+
+        output = '<?xml version="1.0" encoding="utf-8"?>' + '{n}'
+        output += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20001102//EN"    "http://www.w3.org/TR/2000/CR-SVG-20001102/DTD/svg-20001102.dtd" [' + '{n}'
+        output += '{i}'+'<!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">' + '{n}'
+        output += '{i}'+'<!ENTITY ns_vars "http://ns.adobe.com/Variables/1.0/">' + '{n}'
+        output += '{i}'+'<!ENTITY ns_imrep "http://ns.adobe.com/ImageReplacement/1.0/">' + '{n}'
+        output += '{i}'+'<!ENTITY ns_custom "http://ns.adobe.com/GenericCustomNamespace/1.0/">' + '{n}'
+        output += '{i}'+'<!ENTITY ns_flows "http://ns.adobe.com/Flows/1.0/">' + '{n}'
+        output += '{i}'+'<!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">' + '{n}'
+        output += ']>' + '{n}'
+        output += '<svg>' + '{n}'
+        output += '<variableSets  xmlns="&ns_vars;">' + '{n}'
+        output += '{i}'+'<variableSet  varSetName="binding1" locked="none">' + '{n}'
+        output += '{i}{i}'+'<variables>' + '{n}'
+
+        for header in data.fieldnames:
+            output += ('{i}' * 3) + '<variable varName="' + header + '" trait="textcontent" category="&ns_flows;"></variable>' + '{n}'
+
+        output += '{i}{i}'+'</variables>' + '{n}'
+        output += '{i}{i}'+'<v:sampleDataSets  xmlns:v="http://ns.adobe.com/Variables/1.0/" xmlns="http://ns.adobe.com/GenericCustomNamespace/1.0/">' + '{n}'
+
+        for row in data:
+            output += ('{i}' * 3) + '<v:sampleDataSet dataSetName="' + row[data.fieldnames[0]] + '">' + '{n}'
+
+            for field in data.fieldnames:
+                output += ('{i}' * 4) + '<' + field + '>' + '{n}'          
+                output += ('{i}' * 5) + '<p>' + row[field] + '</p>' + '{n}'
+                output += ('{i}' * 4) + '</' +  field + '>' + '{n}'
+
+            output += ('{i}' * 3) + '</v:sampleDataSet>' + '{n}'
+
+        output += '{i}{i}' + '</v:sampleDataSets>' + '{n}'
+        output += '{i}' + '</variableSet>' + '{n}'
+        output += '</variableSets>' + '{n}'
+        output += '</svg>' + '{n}'
+
+        return output.format(i=self.indent, n=self.newline)
 
     def text_table(self, data):
         """text table converter"""
