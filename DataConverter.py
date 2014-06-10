@@ -432,6 +432,15 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return output[:-2] + self.newline + '];'
 
+    def jira(self, data):
+        sep = '|'
+        output = (sep * 2) + (sep * 2).join(data.fieldnames) + (sep * 2) + self.newline
+
+        for row in data:
+            output += sep + sep.join(row.values()) + sep + self.newline
+
+        return output
+
     def json(self, data):
         """JSON properties converter"""
         import json
@@ -593,6 +602,20 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             output = output[:-2] + "}," + self.newline
 
         return output[:-2] + "];"
+
+    def wiki(self, data):
+        '''Wiki table converter'''
+        # self.set_syntax('Text', 'Plain text')
+        headsep, colsep = '!', '|'
+
+        output = '{| class="wikitable"' + self.newline
+        output += headsep + (headsep * 2).join(data.fieldnames) + self.newline
+        
+        for row in data:
+            output += '|-' + self.newline
+            output += colsep + (colsep * 2).join(row.values()) + self.newline
+
+        return output + '|}'
 
     def xml(self, data):
         """XML Nodes converter"""
