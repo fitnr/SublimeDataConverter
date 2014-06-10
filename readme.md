@@ -9,24 +9,26 @@ After installing, you'll find commands look like __DataConverter: to *foo*__ in 
 Turn this:
 
     NAME,VALUE,FRUIT,DATE
-    Steve,10,Apple,"Sep. 12, 2012"
-    Todd,11,Blueberry,"Sep. 13, 2012"
-    Bob,12,Orange,"Sep. 14, 2012"
+    Alice,10,Apple,"Sep. 12, 2012"
+    Bob,11,Blueberry,"Sep. 13, 2012"
+    Chris,12,Orange,"Sep. 14, 2012"
 
 into this (Ruby):
 
 ```ruby
-[{"NAME"=>"Steve", "VALUE"=>10, "FRUIT"=>"Apple", "DATE"=>"Sep. 12, 2012"},
-{"NAME"=>"Todd", "VALUE"=>11, "FRUIT"=>"Blueberry", "DATE"=>"Sep. 13, 2012"},
-{"NAME"=>"Bob", "VALUE"=>12, "FRUIT"=>"Orange", "DATE"=>"Sep. 14, 2012"}];
+[{"NAME"=>"Alice", "VALUE"=>10, "FRUIT"=>"Apple", "DATE"=>"Sep. 12, 2012"},
+{"NAME"=>"Bob", "VALUE"=>11, "FRUIT"=>"Blueberry", "DATE"=>"Sep. 13, 2012"},
+{"NAME"=>"Chris", "VALUE"=>12, "FRUIT"=>"Orange", "DATE"=>"Sep. 14, 2012"}];
 ```
 
 or this (JSON):
 
 ```javascript
-[{"DATE": "Sep. 12, 2012", "FRUIT": "Apple", "NAME": "Steve", "VALUE": "10"},
-{"DATE": "Sep. 13, 2012", "FRUIT": "Blueberry", "NAME": "Todd", "VALUE": "11"},
-{"DATE": "Sep. 14, 2012", "FRUIT": "Orange", "NAME": "Bob", "VALUE": "12"}]
+[
+  {"FRUIT": "Apple", "NAME": "Alice", "VALUE": "10", "DATE": "Sep. 12, 2012"},
+  {"FRUIT": "Blueberry", "NAME": "Bob", "VALUE": "11", "DATE": "Sep. 13, 2012"},
+  {"FRUIT": "Orange", "NAME": "Chris", "VALUE": "12", "DATE": "Sep. 14, 2012"}
+]
 ```
 
 ### Formats supported
