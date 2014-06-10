@@ -47,6 +47,7 @@ or this (JSON):
 * text table
 * XML
 * XML (property list)
+* YAML
 
 ### Configuration
 Check out `DataConverter.sublime-settings` for a documented list of options.
