@@ -513,7 +513,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         for row in data:
             values += self.indent + "("
-            values += self.type_loop(row, formt='{1},', nulltxt='NULL')
+            values += self.type_loop(row, data.fieldnames, formt='{1},', nulltxt='NULL')
 
             values = values[:-1] + '),' + self.newline
 
