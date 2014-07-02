@@ -255,8 +255,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         current_syntax = self.view.settings().get('syntax')
 
         if new_syntax != current_syntax:
-            sublime.load_resource(new_syntax)
-            self.view.set_syntax_file(new_syntax)
+            try:
+                sublime.load_resource(new_syntax)
+                self.view.set_syntax_file(new_syntax)
+            except Exception:
+                print("Unable to set syntax.")
 
     # data type parser
     # ==================
