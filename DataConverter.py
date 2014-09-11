@@ -90,7 +90,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         for sel in self.view.sel():
             selection = self.view.substr(sel)
-            sample = selection[:1024]
+            sample = selection[:2048]
 
             # CSV dialect
             if not self.dialect:
@@ -98,9 +98,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             print('DataConverter: using dialect', self.dialect)
 
-            headers = self.assign_headers(sample, self.dialect)
+            headers = self.assign_headers(sample)
             #  This also assigns types (for typed formats)
-            data = self.import_csv(selection, headers, self.dialect)
+            data = self.import_csv(selection, headers)
 
             # Run converter
             converted = self.converter(data)
@@ -219,16 +219,18 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             except Exception as e:
                 return 'excel'
 
-    def assign_headers(self, sample, dialect):
-        '''Mess with headers, merging and stripping as needed.'''
-        delimiter = csv.get_dialect(dialect).delimiter
-        firstrow = sample.splitlines().pop(0).split(delimiter)
+    def assign_headers(self, sample):
+        '''Assign headers to the data set'''
+        # Use the dialect to get the first line of the sample as a dict
+        # Do this here beacause we'll want the length of the data no matter what
+        sample_io = io.StringIO(sample)
+        headers = next(csv.reader(sample_io, dialect=self.dialect))
+
         header_setting = self.settings.get('headers')
 
         if header_setting is True:
             self.settings.set('has_header', True)
 
-        # Using ['val1', 'val2', ...] if no headers
         elif header_setting is 'never':
             self.settings.set('has_header', False)
 
@@ -250,10 +252,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 print("DataConverter: Set 'headers = false' in the settings to disable.")
                 self.settings.set('has_header', True)
 
-        if self.settings.get('has_header', True):
-            headers = firstrow
-        else:
-            headers = ["val" + str(x) for x in range(len(firstrow))]
+        # Using ['val1', 'val2', ...] if 'headers=never' or Sniffer says there aren't headers
+        if self.settings.get('has_header') is False:
+            headers = ["val" + str(x) for x in range(len(headers))]
 
         return self.format_headers(headers)
 
@@ -268,7 +269,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return headers
 
-    def import_csv(self, selection, headers, dialect):
+    def import_csv(self, selection, headers):
         # Remove header from entries that came with one.
         if self.settings.get('has_header', False) is True:
             selection = selection[selection.find(self.newline):]
@@ -278,12 +279,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         reader = csv.DictReader(
             csvIO,
             fieldnames=headers,
-            dialect=dialect)
+            dialect=self.dialect)
 
         if self.settings.get('typed', False) is True:
             # Another reader for checking field types.
             typerIO = io.StringIO(selection)
-            typer = csv.DictReader(typerIO, fieldnames=headers, dialect=dialect)
+            typer = csv.DictReader(typerIO, fieldnames=headers, dialect=self.dialect)
             self.types = parse(typer, headers)
 
         return reader
