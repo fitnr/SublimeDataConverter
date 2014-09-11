@@ -13,7 +13,7 @@ import os
 import re
 try:
     import io
-except Exception as e:
+except ImportError as e:
     import StringIO as io
 
 
@@ -23,6 +23,56 @@ def sublime_format_path(pth):
     if sublime.platform() == "windows" and m is not None:
         pth = m.group(1) + "/" + m.group(2)
     return pth.replace("\\", "/")
+
+def get_type(datum):
+    """ Select a data type from a (string) input"""
+    try:
+        int(datum)
+        return int
+    except ValueError:
+        try:
+            float(datum)
+            return float
+        except ValueError:
+            return str
+
+def parse(reader, headers):
+    """ Return a list containing a best guess for the types of data in each column. """
+    output_types, types = [], []
+
+    for n in range(10):
+        try:
+            row = reader.next()
+        except:
+            print('Error parsing')
+            break
+
+        tmp = []
+
+        for h in headers:
+            typ = get_type(row[h])
+            tmp.append(typ)
+
+        types.append(tmp)
+
+    # rotate the array
+    types = list(zip(*types))
+
+    for type_list in types:
+        if str in type_list:
+            output_types.append(str)
+        elif float in type_list:
+            output_types.append(float)
+        else:
+            output_types.append(int)
+
+    print('DataConverter found these output types:', output_types)
+    return output_types
+
+
+def tr(row):
+    """Helper for HTML converter"""
+    return "{i}{i}<tr>{n}" + row + "{i}{i}</tr>{n}"
 
 
 class DataConverterCommand(sublime_plugin.TextCommand):
@@ -47,7 +97,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 self.dialect = self.sniff(sample)
 
             print('DataConverter: using dialect', self.dialect)
-            
+
             headers = self.assign_headers(sample, self.dialect)
             #  This also assigns types (for typed formats)
             data = self.import_csv(selection, headers, self.dialect)
@@ -157,7 +207,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             delimiter = self.settings.get('delimiter', ',')
 
-            print('DataConverter: Using the default delimiter: "'+ delimiter +'"')
+            print('DataConverter: Using the default delimiter: "' + delimiter + '"')
             print('DataConverter: You can change the default delimiter in the settings file.')
 
             delimiter = bytes(delimiter, 'utf-8')  # dialect definition takes a 1-char bytestring
@@ -168,7 +218,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             except Exception as e:
                 return 'excel'
- 
+
     def assign_headers(self, sample, dialect):
         '''Mess with headers, merging and stripping as needed.'''
         delimiter = csv.get_dialect(dialect).delimiter
@@ -183,7 +233,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.settings.set('has_header', False)
 
         else:
-            # If not told to try definitely use headers or definitely not, we sniff for them.
+            # If not told to definitely try to use headers or definitely not, we sniff for them.
             # Sniffing isn't perfect, especially with short data sets and strange delimiters
             try:
                 sniffed_headers = csv.Sniffer().has_header(sample)
@@ -199,7 +249,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 print("DataConverter: CSV module had trouble sniffing for headers. Assuming they exist.")
                 print("DataConverter: Set 'headers = false' in the settings to disable.")
                 self.settings.set('has_header', True)
-
 
         if self.settings.get('has_header', True):
             headers = firstrow
@@ -235,7 +284,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             # Another reader for checking field types.
             typerIO = io.StringIO(selection)
             typer = csv.DictReader(typerIO, fieldnames=headers, dialect=dialect)
-            self.types = self.parse(typer, headers)
+            self.types = parse(typer, headers)
 
         return reader
 
@@ -261,57 +310,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             except Exception:
                 print("Unable to set syntax.")
 
-    # data type parser
-    # ==================
-    def parse(self, reader, headers):
-        """ Return a list containing a best guess for the types of data in each column. """
-        output_types, types = [], []
-
-        for n in range(10):
-            try:
-                row = next(reader)
-            except:
-                print('Error parsing')
-                break
-
-            tmp = []
-
-            for h in headers:
-                typ = self.get_type(row[h])
-                tmp.append(typ)
-
-            types.append(tmp)
-
-        #rotate the array
-        types = list(zip(*types))
-
-        for header, type_list in zip(headers, types):
-            if str in type_list:
-                output_types.append(str)
-            elif float in type_list:
-                output_types.append(float)
-            else:
-                output_types.append(int)
-
-        print('DataConverter found these output types:', output_types)
-        return output_types
-
-    def get_type(self, datum):
-        """ Select a data type from a (string) input"""
-        try:
-            int(datum)
-            return int
-        except:
-            try:
-                float(datum)
-                return float
-            except:
-                return str
-
     # Converters
-    # ==========
-
-    # Note that converters should assign a syntax file path to self.syntax.
+    # Note that converters should call self.set_syntax
 
     def type_loop(self, row, headers, formt, nulltxt='null'):
         """
@@ -341,7 +341,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output = "["
 
-        #begin render loops
+        # begin render loops
         for row in data:
             output += "{"
             output += self.type_loop(row, data.fieldnames, '{0}:{1},')
@@ -371,10 +371,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return dim + output
 
-    def tr(self, row):
-        """Helper for HTML converter"""
-        return "{i}{i}<tr>{n}" + row + "{i}{i}</tr>{n}"
-
     def html(self, data):
         """HTML Table converter.
         We use {i} and {n} as shorthand for self.indent and self.newline."""
@@ -387,7 +383,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             for header in data.fieldnames:
                 thead += '{i}{i}{i}<th>' + header + '</th>{n}'
 
-            thead = '{i}<thead>{n}' + self.tr(thead) + '</thead>{n}'
+            thead = '{i}<thead>{n}' + tr(thead) + '</thead>{n}'
         else:
             thead = ''
 
@@ -398,7 +394,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             for key in data.fieldnames:
                 rowText += '{i}{i}{i}<td>' + (row[key] or "") + '</td>{n}'
 
-            tbody += self.tr(rowText)
+            tbody += tr(rowText)
 
         table = "<table>{n}" + thead
         table += "{i}<tbody>{n}" + tbody + "{i}</tbody>{n}</table>"
@@ -595,7 +591,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def ruby(self, data):
         """Ruby converter"""
         self.set_syntax('Ruby')
-        #comment, comment_end = "#", ""
+        # comment, comment_end = "#", ""
         output = "["
 
         for row in data:
@@ -613,7 +609,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output = '{| class="wikitable"' + self.newline
         output += headsep + (headsep * 2).join(data.fieldnames) + self.newline
-        
+
         for row in data:
             output += '|-' + self.newline
             output += colsep + (colsep * 2).join(row.values()) + self.newline
@@ -662,31 +658,31 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output = '<?xml version="1.0" encoding="utf-8"?>' + '{n}'
         output += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20001102//EN"    "http://www.w3.org/TR/2000/CR-SVG-20001102/DTD/svg-20001102.dtd" [' + '{n}'
-        output += '{i}'+'<!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">' + '{n}'
-        output += '{i}'+'<!ENTITY ns_vars "http://ns.adobe.com/Variables/1.0/">' + '{n}'
-        output += '{i}'+'<!ENTITY ns_imrep "http://ns.adobe.com/ImageReplacement/1.0/">' + '{n}'
-        output += '{i}'+'<!ENTITY ns_custom "http://ns.adobe.com/GenericCustomNamespace/1.0/">' + '{n}'
-        output += '{i}'+'<!ENTITY ns_flows "http://ns.adobe.com/Flows/1.0/">' + '{n}'
-        output += '{i}'+'<!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">' + '{n}'
+        output += '{i}' + '<!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">' + '{n}'
+        output += '{i}' + '<!ENTITY ns_vars "http://ns.adobe.com/Variables/1.0/">' + '{n}'
+        output += '{i}' + '<!ENTITY ns_imrep "http://ns.adobe.com/ImageReplacement/1.0/">' + '{n}'
+        output += '{i}' + '<!ENTITY ns_custom "http://ns.adobe.com/GenericCustomNamespace/1.0/">' + '{n}'
+        output += '{i}' + '<!ENTITY ns_flows "http://ns.adobe.com/Flows/1.0/">' + '{n}'
+        output += '{i}' + '<!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">' + '{n}'
         output += ']>' + '{n}'
         output += '<svg>' + '{n}'
         output += '<variableSets  xmlns="&ns_vars;">' + '{n}'
-        output += '{i}'+'<variableSet  varSetName="binding1" locked="none">' + '{n}'
-        output += '{i}{i}'+'<variables>' + '{n}'
+        output += '{i}' + '<variableSet  varSetName="binding1" locked="none">' + '{n}'
+        output += '{i}{i}' + '<variables>' + '{n}'
 
         for header in data.fieldnames:
             output += ('{i}' * 3) + '<variable varName="' + header + '" trait="textcontent" category="&ns_flows;"></variable>' + '{n}'
 
-        output += '{i}{i}'+'</variables>' + '{n}'
-        output += '{i}{i}'+'<v:sampleDataSets  xmlns:v="http://ns.adobe.com/Variables/1.0/" xmlns="http://ns.adobe.com/GenericCustomNamespace/1.0/">' + '{n}'
+        output += '{i}{i}' + '</variables>' + '{n}'
+        output += '{i}{i}' + '<v:sampleDataSets  xmlns:v="http://ns.adobe.com/Variables/1.0/" xmlns="http://ns.adobe.com/GenericCustomNamespace/1.0/">' + '{n}'
 
         for row in data:
             output += ('{i}' * 3) + '<v:sampleDataSet dataSetName="' + row[data.fieldnames[0]] + '">' + '{n}'
 
             for field in data.fieldnames:
-                output += ('{i}' * 4) + '<' + field + '>' + '{n}'          
+                output += ('{i}' * 4) + '<' + field + '>' + '{n}'
                 output += ('{i}' * 5) + '<p>' + row[field] + '</p>' + '{n}'
-                output += ('{i}' * 4) + '</' +  field + '>' + '{n}'
+                output += ('{i}' * 4) + '</' + field + '>' + '{n}'
 
             output += ('{i}' * 3) + '</v:sampleDataSet>' + '{n}'
 
