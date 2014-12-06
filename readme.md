@@ -71,6 +71,10 @@ Clone the repository into your Sublime Text 2 packages directory:
 ### Without Package Control or Git
 Click `Download Zip` above to download the package. Unzip it, rename the folder "DataConverter" and move it into your Sublime Text 2 packages directory (*Preferences > Browse Packages* in the application menu).
 
+## Limitations
+
+CSV containing Unicode characters aren't supported in the Sublime Text 2 version of the package. This is due to limitations in the Python 2.6 csv module. Unicode is fully supported in the Sublime Text 3 version of the package.
+
 ## Problems?
 
 [Submit an issue](https://github.com/fitnr/SublimeDataConverter/issues).
