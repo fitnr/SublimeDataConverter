@@ -24,6 +24,7 @@ def sublime_format_path(pth):
         pth = m.group(1) + "/" + m.group(2)
     return pth.replace("\\", "/")
 
+
 def get_type(datum):
     """ Select a data type from a (string) input"""
     try:
@@ -35,6 +36,7 @@ def get_type(datum):
             return float
         except ValueError:
             return str
+
 
 def parse(reader, headers):
     """ Return a list containing a best guess for the types of data in each column. """
@@ -185,7 +187,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         try:
             csv.get_dialect(dialectname)
             return dialectname
-        except Exception:
+        except:
             user_dialects = self.settings.get('dialects')
 
         try:
@@ -193,7 +195,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             print("DataConverter: Using custom dialect", dialectname)
             return dialectname
 
-        except Exception:
+        except:
             print("DataConverter: Couldn't register custom dialect named", dialectname)
             return None
 
@@ -327,7 +329,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         out = ''
 
         for key, typ in zip(headers, self.types):
-            if row[key] is None:
+
+            if key not in row or row[key] is None:
                 txt = nulltxt
             elif typ == str:
                 txt = '"' + row[key] + '"'
@@ -335,6 +338,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 txt = row[key]
 
             out += formt.format(key, txt)
+
         return out
 
     def actionscript(self, data):
@@ -358,6 +362,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('ASP')
         #comment, comment_end = "'", ""
         output, r = "", 0
+        c = len(data.fieldnames)
 
         for row in data:
 
@@ -545,7 +550,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for row in data:
             output += self.indent + array_open
             output += self.type_loop(row, data.fieldnames, '"{0}"=>{1}, ')
-
             output = output[:-2] + array_close + "," + self.newline
 
         return output[:-1] + self.newline + array_close + ";"
