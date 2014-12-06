@@ -40,11 +40,11 @@ def parse(reader, headers):
     """ Return a list containing a best guess for the types of data in each column. """
     output_types, types = [], []
 
-    for n in range(10):
+    for _ in range(10):
         try:
-            row = reader.next()
+            row = next(reader)
         except:
-            print('Error parsing')
+            print('DataConverter: Error parsing')
             break
 
         tmp = []
