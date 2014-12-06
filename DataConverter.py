@@ -178,6 +178,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         else:
             self.dialect = None
 
+        self.default_variable = self.settings.get('default_variable', 'DataConverter')
+
     def set_dialect(self):
         dialectname = self.settings.get('use_dialect')
         try:
@@ -424,7 +426,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """JavaScript object converter"""
 
         self.set_syntax('JavaScript')
-        output = 'var dataConverter = [' + self.newline
+        output = 'var ' + self.default_variable + ' = [' + self.newline
 
         for row in data:
             output += self.indent + "{" + self.type_loop(row, data.fieldnames, '{0}: {1}, ')
@@ -481,7 +483,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         self.set_syntax('SQL')
 
-        table = 'DataConverter'
+        table = self.default_variable
 
         # CREATE TABLE statement
         create = 'CREATE TABLE ' + table + '({n}'
@@ -538,7 +540,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('PHP')
         #comment, comment_end = "//", ""
 
-        output = "$DataConverter = " + array_open + self.newline
+        output = "$" + self.default_variable + "= " + array_open + self.newline
 
         for row in data:
             output += self.indent + array_open
