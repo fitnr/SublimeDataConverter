@@ -453,7 +453,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         import json
         self.set_syntax('JavaScript', 'JSON')
 
-        return json.dumps([row for row in data])
+        return json.dumps([row for row in data], ensure_ascii=False)
 
     def json_columns(self, data):
         """JSON Array of Columns converter"""
