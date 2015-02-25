@@ -41,6 +41,7 @@ or this (JSON):
 * JSON
 * JSON (array of columns)
 * JSON (array of rows)
+* JSON (object, first column is key)
 * Javascript object
 * MySQL
 * Perl

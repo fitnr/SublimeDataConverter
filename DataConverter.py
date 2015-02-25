@@ -150,6 +150,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             "json",
             "json_columns",
             "json_rows",
+            "json_keyed",
             "text_table",
             "wiki"
             "xml",
@@ -452,7 +453,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """JSON properties converter"""
         import json
         self.set_syntax('JavaScript', 'JSON')
-
         return json.dumps([row for row in data], ensure_ascii=False)
 
     def json_columns(self, data):
@@ -466,7 +466,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 if key not in colDict:
                     colDict[key] = []
                 colDict[key].append(item)
-        return json.dumps(colDict)
+        return json.dumps(colDict, indent=len(self.indent), separators=(',', ':'))
 
     def json_rows(self, data):
         """JSON Array of Rows converter"""
@@ -480,12 +480,21 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 itemlist.append(item)
             rowArrays.append(itemlist)
 
-        return json.dumps(rowArrays)
+        return json.dumps(rowArrays, indent=len(self.indent), separators=(',', ':'))
+
+    def json_keyed(self, data):
+        """JSON, first row is key"""
+        import json
+        self.set_syntax('JavaScript', 'JSON')
+
+        key = data.fieldnames[0]
+        keydict = {row[key]: {k: v for k, v in row.items() if k != key} for row in data}
+
+        return json.dumps(keydict, indent=len(self.indent), separators=(',', ':'))
 
     def mysql(self, data):
         """MySQL converter
         We use {i} and {n} as shorthand for self.indent and self.newline."""
-
         self.set_syntax('SQL')
 
         table = self.default_variable
