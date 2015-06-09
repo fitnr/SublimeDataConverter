@@ -5,32 +5,35 @@
   // When "never", DataConverter will use default headers looks like [val1, val2, ...]
   "headers": "sniff",
 
-  // Set to either a character or False. When false, DataConverter uses the OS line separator, which is "\r" in Windows.
-  "line_sep": false,
+  // Set to either a character or null. When null, DataConverter uses the OS line separator, which is "\r" in Windows.
+  "line_sep": null,
 
+  // Define a dialect for the csv reader
   // Check the python docs for a description of how to define a dialect
   // https://docs.python.org/3.3/library/csv.html#dialects-and-formatting-parameters
-  // Python's csv reader is hard-coded to recognise either '\r' or '\n' as end-of-line, and ignores lineterminator.
+  // (Python's csv reader is hard-coded to recognise either '\r' or '\n' as end-of-line, and ignores lineterminator.)
+  // The below example settings are the defaults in the csv modules, and will be used if a dialect can't be detected
   // "dialects": {
   //   "example": {
   //     "delimiter": ",",
   //     "quotechar": "\"",
-  //     "lineterminator": "\r\n",
-  //     "doublequote": 0,
-  //     "skipinitialspace": 0,
-  //     "strict": 0,
-  //     "quoting": 0
+  //     "escapechar": "\\",
+  //     "doublequote": false
+  //     "skipinitialspace": false,
+  //     "strict": false,
+  //     "quoting": "QUOTE_MINIMAL"
   //   }
   // },
 
-  // Could be one of the dialects defined above, or one defined in the csv module (e.g. 'excel', 'excel_tab').
-  // When false or blank, DataConverter tries to detect the dialect, which isn't 100% reliable.
+  // Mandate a dialect for DataConverter to use.
+  // Could be a dialect defined in your settings file, or one defined in the csv module ('excel', 'excel_tab', 'unix_dialect').
+  // This may be useful when specifying custom commands in a .sublime-commands file.
   // "use_dialect": "example",
 
   // Modern HTML served with a proper character encoding can accept UTF-8 characters.
   // If you're using another charset for your html, set this to false.
   // When false, the DataConverter 'to HTML Table' function will escape non-ascii characters (e.g. &ndash; for –)
-  // (By the way, XML is always returned with escaped characters)
+  // (XML is always returned with escaped characters.)
   "html_utf8": true,
 
   // DataConverter will try to detect the delimiter used. If it has a problem, it will fall back on this value.
