@@ -37,6 +37,9 @@ def get_type(datum):
         except ValueError:
             return str
 
+    except TypeError:
+        return type(None)
+
 
 def parse(reader, headers):
     """ Return a list containing a best guess for the types of data in each column. """
