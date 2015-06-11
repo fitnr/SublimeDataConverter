@@ -159,7 +159,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             sample = selection[:2048]
 
             # CSV dialect
-            if 'dialect' not in self.settings:
+            # Sniff if we haven't done this before, or we sniffed before.
+            if 'dialect' not in self.settings or self.settings['dialect'] == 'sniffed':
                 self.settings['dialect'] = self.sniff(sample)
 
             print('DataConverter: using dialect', self.settings['dialect'])
