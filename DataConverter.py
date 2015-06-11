@@ -106,6 +106,15 @@ def set_dialect(dialectname, user_dialects):
             print("DataConverter: Couldn't register custom dialect named", dialectname)
             return None
 
+def sniff(sample):
+    try:
+        dialect = csv.Sniffer().sniff(sample)
+        csv.register_dialect('sniffed', dialect)
+        print('DataConverter: using sniffed dialect with delimiter:', dialect.delimiter)
+        return 'sniffed'
+
+    except _csv.Error:
+        return 'excel'
 
 class DataConverterCommand(sublime_plugin.TextCommand):
 
@@ -161,7 +170,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             # CSV dialect
             # Sniff if we haven't done this before, or we sniffed before.
             if 'dialect' not in self.settings or self.settings['dialect'] == 'sniffed':
-                self.settings['dialect'] = self.sniff(sample)
+                self.settings['dialect'] = sniff(sample)
 
             print('DataConverter: using dialect', self.settings['dialect'])
 
@@ -227,16 +236,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.settings['dialect'] = set_dialect(user_settings.get('use_dialect'), user_settings.get('dialects', {}))
 
         self.settings['default_variable'] = user_settings.get('default_variable', 'DataConverter')
-
-    def sniff(self, sample):
-        try:
-            dialect = csv.Sniffer().sniff(sample)
-            csv.register_dialect('sniffed', dialect)
-            print('DataConverter: using sniffed dialect with delimiter:', dialect.delimiter)
-            return 'sniffed'
-
-        except _csv.Error:
-            return 'excel'
 
     def assign_headers(self, sample):
         '''Assign headers to the data set'''
