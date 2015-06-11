@@ -55,8 +55,8 @@
   // If false: leaves selection(s) in place
   "deselect_after": false
 
-  // For PHP and Javascript conversions, DataConverter must name the variable being created (and the table in MySQL)
-  // By default, it's called 'DataConverter', pick your own setting if you like
+  // For MySQL conversions, DataConverter must name the table being created
+  // By default, it's called 'DataConverter', set your own value here
   // "default_variable": "DataConverter"
 
 }

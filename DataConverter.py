@@ -12,6 +12,7 @@ import csv
 import _csv
 import os
 import re
+import pprint
 try:
     import io
 except ImportError as e:
@@ -445,7 +446,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """JavaScript object converter"""
 
         self.set_syntax('JavaScript')
-        output = 'var ' + self.settings['default_variable'] + ' = [' + self.settings['newline']
+        output = '[' + self.settings['newline']
 
         for row in data:
             output += self.settings['indent'] + "{" + self.type_loop(row, data.fieldnames, '{0}: {1}, ')
@@ -567,7 +568,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('PHP')
         #comment, comment_end = "//", ""
 
-        output = "$" + self.settings['default_variable'] + "= " + array_open + self.settings['newline']
+        output = array_open + self.settings['newline']
 
         for row in data:
             output += self.settings['indent'] + array_open
@@ -599,7 +600,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                     outrow[k] = row[k]
             fields.append(outrow)
 
-        return repr(fields)
+        return pprint.pformat(fields)
 
     def python_list(self, data):
         """Python list of lists converter"""
@@ -615,7 +616,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 else:
                     outrow.append(row[k])
             fields.append(outrow)
-        return '# headers = ' + repr(data.fieldnames) + self.settings['newline'] + repr(fields)
+
+        return '# headers = ' + repr(data.fieldnames) + self.settings['newline'] + pprint.pformat(fields)
 
     def ruby(self, data):
         """Ruby converter"""
@@ -778,11 +780,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         #  For typed formats requiring, self.settings['types'] is a list of the sniffed Python types of each column
         for row in data:
             output_text += "-" + self.settings['newline']
+
             for header in data.fieldnames:
-                try:
-                    output_text += "  " + header + ": " + row[header] + self.settings['newline']
-                except Exception:
-                    pass
+                output_text += "  " + header + ": " + row.get(header, '') + self.settings['newline']
 
             output_text += self.settings['newline']
 
