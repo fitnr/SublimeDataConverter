@@ -9,6 +9,7 @@ Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
 import sublime
 import sublime_plugin
 import csv
+import _csv
 import os
 import re
 try:
@@ -88,8 +89,8 @@ def set_dialect(dialectname, user_dialects):
     try:
         csv.get_dialect(dialectname)
         return dialectname
-    except:
 
+    except _csv.Error:
         try:
             user_quoting = user_dialects[dialectname].pop('quoting', 'QUOTE_MINIMAL')
 
@@ -100,9 +101,9 @@ def set_dialect(dialectname, user_dialects):
             print("DataConverter: Using custom dialect", dialectname)
             return dialectname
 
-    except:
-        print("DataConverter: Couldn't register custom dialect named", dialectname)
-        return None
+        except _csv.Error:
+            print("DataConverter: Couldn't register custom dialect named", dialectname)
+            return None
 
 
 class DataConverterCommand(sublime_plugin.TextCommand):
@@ -227,10 +228,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         try:
             dialect = csv.Sniffer().sniff(sample)
             csv.register_dialect('sniffed', dialect)
-            print('DataConverter: using delimiter:', dialect.delimiter)
+            print('DataConverter: using sniffed dialect with delimiter:', dialect.delimiter)
             return 'sniffed'
 
-        except:
+        except _csv.Error:
             return 'excel'
 
     def assign_headers(self, sample):
@@ -259,9 +260,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                     self.settings['has_header'] = False
                     print("DataConverter: CSV Sniffer didn't find headers")
 
-            except Exception:
+            except _csv.Error:
                 print("DataConverter: CSV module had trouble sniffing for headers. Assuming they exist.")
-                print("DataConverter: Set 'headers = false' in the settings to disable.")
+                print('DataConverter: Add "headers": false to your settings file to assume no headers.')
                 self.settings['has_header'] = True
 
         # Using ['val1', 'val2', ...] if 'headers=never' or Sniffer says there aren't headers
@@ -729,7 +730,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             for row in _data:
                 try:
                     length = max(length, len(row[header]) + 1)
-                except:
+                except TypeError:
                     pass
 
             field_length.append(length)
