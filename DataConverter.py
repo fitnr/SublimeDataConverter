@@ -111,6 +111,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     # This will be set later on, in the converter function
     syntax = None
     settings = dict()
+    escapechar = '\\'
+    quotechar = '"'
 
     no_space_formats = [
         'actionscript',
@@ -324,8 +326,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             except Exception:
                 print("Unable to set syntax.")
 
-    # Converters
-    # Note that converters should call self.set_syntax
+    def _escape(self, string):
+        return string.replace(self.quotechar, self.escapechar + self.quotechar)
 
     def type_loop(self, row, headers, formt, nulltxt='null'):
         """
@@ -342,13 +344,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             if key not in row or row[key] is None:
                 txt = nulltxt
             elif typ == str:
-                txt = '"' + row[key] + '"'
+                txt = '"' + self._escape(row[key]) + '"'
             else:
                 txt = row[key]
 
             out += formt.format(key, txt)
 
         return out
+
+    # Converters
+    # Note that converters should call self.set_syntax
 
     def actionscript(self, data):
         """Actionscript converter"""
@@ -377,7 +382,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             for c, key, item_type in zip(range(len(data.fieldnames)), data.fieldnames, self.settings['types']):
                 if item_type == str:
-                    row[key] = '"' + (row[key] or "") + '"'
+                    row[key] = '"' + self._escape(row[key] or "") + '"'
                 if item_type is None:
                     row[key] = 'null'
 
@@ -409,7 +414,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             rowText = ""
 
             for key in data.fieldnames:
-                rowText += '{i}{i}{i}<td>' + (row[key] or "") + '</td>{n}'
+                rowText += '{i}{i}{i}<td>' + self._escape(row[key] or "") + '</td>{n}'
 
             tbody += tr(rowText)
 
@@ -496,7 +501,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('JavaScript', 'JSON')
 
         key = data.fieldnames[0]
-        keydict = {row[key]: {k: v for k, v in row.items() if k != key} for row in data}
+        keydict = {self._escape(row[key]): {k: v for k, v in row.items() if k != key} for row in data}
 
         return json.dumps(keydict, indent=len(self.settings['indent']), separators=(',', ':'))
 
