@@ -406,7 +406,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             for header in data.fieldnames:
                 thead += '{i}{i}{i}<th>' + header + '</th>{n}'
 
-            thead = '{i}<thead>{n}' + tr(thead) + '</thead>{n}'
+            thead = '{i}<thead>{n}' + tr(thead) + '{i}</thead>{n}'
         else:
             thead = ''
 
