@@ -1,0 +1,15 @@
+DataConverter 1.1.0
+-------------------
+
+This update removes the "delimiter" setting, which overlapped with the "dialects" setting.
+If you wish to read a specific DSV syntax, the "use_dialect" setting allows you to set a specific dialect.
+
+Changes
+--------
+* pretty-printed Python output
+* output is now escaped
+* better error handling
+* Dummy variable no longer used in PHP and JS output
+* Corrected HTML </thead> indentation
+
+If you have a problem or there's a format you would like to see in DataConverter, visit https://github.com/fitnr/SublimeDataConverter/issues
