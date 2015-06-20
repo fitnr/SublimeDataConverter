@@ -10,7 +10,6 @@ import sublime
 import sublime_plugin
 import csv
 import _csv
-import os
 import re
 import pprint
 try:
@@ -216,7 +215,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # New lines
         line_sep = user_settings.get('line_sep')
-        self.settings['newline'] = line_sep or os.linesep
+        self.settings['newline'] = line_sep or '\n'
 
         user_quoting = user_settings.get('quoting', 'QUOTE_MINIMAL')
         self.settings['quoting'] = getattr(csv, user_quoting, csv.QUOTE_MINIMAL)
