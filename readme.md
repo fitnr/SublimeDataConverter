@@ -62,10 +62,10 @@ Check out `DataConverter.sublime-settings` for a documented list of options.
 ## Installation
 
 ### With Package Control
-If you have [Package Control](http://github.com/wbond/sublime_package_control) installed, you can install DataConverter from within Sublime Text 2. Open the Command Palette and enter "Package Control: Install Package", then search for __DataConverter__.
+If you have [Package Control](http://github.com/wbond/sublime_package_control) installed, you can install DataConverter from within Sublime Text. Open the Command Palette and enter "Package Control: Install Package", then search for __DataConverter__.
 
 ### Without Package Control
-Clone the repository into your Sublime Text 2 packages directory:
+Clone the repository into your Sublime Text packages directory:
 
     git clone git://github.com/fitnr/SublimeDataConverter.git
 
