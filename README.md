@@ -8,26 +8,26 @@ After installing, you'll find commands look like __DataConverter: to *foo*__ in 
 
 Turn this:
 
-    NAME,VALUE,FRUIT,DATE
-    Alice,10,Apple,"Sep. 12, 2012"
-    Bob,11,Blueberry,"Sep. 13, 2012"
-    Chris,12,Orange,"Sep. 14, 2012"
+    name,value,fruit,date
+    Alice,10,Apple,"Sep. 12, 2016"
+    Bob,11,Blueberry,"Sep. 13, 2016"
+    Chris,12,Orange,"Sep. 14, 2016"
 
 into this (Ruby):
 
 ```ruby
-[{"NAME"=>"Alice", "VALUE"=>10, "FRUIT"=>"Apple", "DATE"=>"Sep. 12, 2012"},
-{"NAME"=>"Bob", "VALUE"=>11, "FRUIT"=>"Blueberry", "DATE"=>"Sep. 13, 2012"},
-{"NAME"=>"Chris", "VALUE"=>12, "FRUIT"=>"Orange", "DATE"=>"Sep. 14, 2012"}];
+[{"name"=>"Alice", "value"=>10, "fruit"=>"Apple", "date"=>"Sep. 12, 2016"},
+{"name"=>"Bob", "value"=>11, "fruit"=>"Blueberry", "date"=>"Sep. 13, 2016"},
+{"name"=>"Chris", "value"=>12, "fruit"=>"Orange", "date"=>"Sep. 14, 2016"}];
 ```
 
 or this (JSON):
 
 ```javascript
 [
-  {"FRUIT": "Apple", "NAME": "Alice", "VALUE": "10", "DATE": "Sep. 12, 2012"},
-  {"FRUIT": "Blueberry", "NAME": "Bob", "VALUE": "11", "DATE": "Sep. 13, 2012"},
-  {"FRUIT": "Orange", "NAME": "Chris", "VALUE": "12", "DATE": "Sep. 14, 2012"}
+  {"fruit": "Apple", "name": "Alice", "value": "10", "date": "Sep. 12, 2016"},
+  {"fruit": "Blueberry", "name": "Bob", "value": "11", "date": "Sep. 13, 2016"},
+  {"fruit": "Orange", "name": "Chris", "value": "12", "date": "Sep. 14, 2016"}
 ]
 ```
 
@@ -57,7 +57,7 @@ or this (JSON):
 * YAML
 
 ### Configuration
-Check out `DataConverter.sublime-settings` for a documented list of options.
+Check out [`DataConverter.sublime-settings`](DataConverter.sublime-settings) for a documented list of options.
 
 ## Installation
 
