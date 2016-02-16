@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-DataConverter package for Sublime Text
-https://github.com/fitnr/SublimeDataConverter
-
-Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
-"""
-
 import sublime
 import sublime_plugin
 import csv
 import _csv
+import json
 import re
 import pprint
 try:
@@ -18,7 +12,16 @@ except ImportError as e:
     import StringIO as io
 
 
+"""
+DataConverter package for Sublime Text
+https://github.com/fitnr/SublimeDataConverter
+
+Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
+"""
+
 # Borrowed from Apply Syntax
+
+
 def sublime_format_path(pth):
     m = re.match(r"^([A-Za-z]{1}):(?:/|\\)(.*)", pth)
     if sublime.platform() == "windows" and m is not None:
@@ -84,8 +87,9 @@ def tr(row):
     """Helper for HTML converter"""
     return "{i}{i}<tr>{n}" + row + "{i}{i}</tr>{n}"
 
-def set_dialect(dialectname, user_dialects):
 
+def set_dialect(dialectname, user_dialects):
+    '''Get a CSV dialect from csv.dialects or a register one from passed dict.'''
     try:
         csv.get_dialect(dialectname)
         return dialectname
@@ -105,6 +109,7 @@ def set_dialect(dialectname, user_dialects):
             print("DataConverter: Couldn't register custom dialect named", dialectname)
             return None
 
+
 def sniff(sample):
     try:
         dialect = csv.Sniffer().sniff(sample)
@@ -115,6 +120,8 @@ def sniff(sample):
     except _csv.Error:
         return 'excel'
 
+
+
 class DataConverterCommand(sublime_plugin.TextCommand):
 
     # This will be set later on, in the converter function
@@ -123,6 +130,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     escapechar = '\\'
     quotechar = '"'
 
+    converter = None
+
+    # These format can't have spaces in field names. By default, spaces replaced with "_".
     no_space_formats = [
         'actionscript',
         'javascript',
@@ -132,6 +142,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         'yaml'
     ]
 
+    # These formats don't need to be checked for int/str/etc types.
     untyped_formats = [
         "html",
         "jira",
@@ -158,6 +169,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             print("DataConverter: Error fetching settings. Did you specify a format?", e)
             return
 
+        # If nothing is selected, select all.
         if self.view.sel()[0].empty():
             self.view.sel().add(sublime.Region(0, self.view.size()))
             deselect_flag = True
@@ -189,11 +201,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.deselect()
 
     def get_settings(self, kwargs):
-        '''
-        Adding a format? Check if it belongs in no_space_formats and untyped_formats.
-        untyped_formats: don't need to be checked for int/str/etc types.
-        no_space_formats: can't have spaces in their headers. By default, spaces replaced with "_".
-        '''
+        '''Get settings from kwargs, user settings.'''
 
         user_settings = sublime.load_settings('DataConverter.sublime-settings')
 
@@ -209,9 +217,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.settings['mergeheaders'] = kwargs['format'] in self.no_space_formats
 
         # Typing
-        # Don't like having 'not' in this expression, but it makes more sense to use 'typed' from here on out
-        # And it's less error prone to use the (smaller) list of untyped formats
         self.settings['typed'] = kwargs['format'] not in self.untyped_formats
+        # Don't like having 'not' in this expression, but it makes more sense to use
+        # 'typed' from here on out, and it's less error prone to use the (smaller)
+        # list of untyped formats.
 
         # New lines
         line_sep = user_settings.get('line_sep')
@@ -274,7 +283,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         return self.format_headers(headers)
 
     def format_headers(self, headers):
-        # Replace spaces in the header names for some formats.
+        '''Replace spaces in the header names for some formats.'''
         if self.settings.get('mergeheaders', False) is True:
             hj = self.settings.get('header_joiner', '_')
             headers = [x.replace(' ', hj) for x in headers]
@@ -285,6 +294,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         return headers
 
     def import_csv(self, selection, headers):
+        '''Read CSV data from file into a StringIO object.'''
         # Remove header from entries that came with one.
         if self.settings.get('has_header', False) is True:
             selection = selection[selection.find(self.settings['newline']):]
@@ -327,15 +337,19 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 print("Unable to set syntax.")
 
     def _escape(self, string):
+        '''Add an escape character in front of a quote character in given string.'''
         return string.replace(self.quotechar, self.escapechar + self.quotechar)
 
     def type_loop(self, row, headers, formt, nulltxt='null'):
         """
         Helper loop for checking types as we write out a row.
         Strings get quoted, floats and ints don't.
-        row is a dictionary returned from DictReader
-        Returns a line of code formatted with `formt` (e.g. "{0}=>{1}, ")
 
+        Args:
+            row (dict): returned from DictReader
+
+        Returns:
+            str formatted with `formt` (e.g. "{0}=>{1}, ")
         """
         out = ''
 
@@ -394,9 +408,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         return dim + output
 
     def html(self, data):
-        """HTML Table converter.
-        We use {i} and {n} as shorthand for self.settings['indent'] and self.settings['newline']."""
-
+        """HTML Table converter."""
+        # Uses {i} and {n} as shorthand for self.settings['indent'] and self.settings['newline'].
         self.set_syntax('HTML')
         thead, tbody = "", ""
 
@@ -464,13 +477,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def json(self, data):
         """JSON properties converter"""
-        import json
         self.set_syntax('JavaScript', 'JSON')
         return json.dumps([row for row in data], ensure_ascii=False)
 
     def json_columns(self, data):
         """JSON Array of Columns converter"""
-        import json
         self.set_syntax('JavaScript', 'JSON')
         colDict = {}
 
@@ -483,7 +494,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def json_rows(self, data):
         """JSON Array of Rows converter"""
-        import json
         self.set_syntax('JavaScript', 'JSON')
         rowArrays = []
 
@@ -497,7 +507,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def json_keyed(self, data):
         """JSON, first row is key"""
-        import json
         self.set_syntax('JavaScript', 'JSON')
 
         key = data.fieldnames[0]
@@ -506,8 +515,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         return json.dumps(keydict, indent=len(self.settings['indent']), separators=(',', ':'))
 
     def mysql(self, data):
-        """MySQL converter
-        We use {i} and {n} as shorthand for self.settings['indent'] and self.settings['newline']."""
+        """MySQL converter"""
+        # Uses {i} and {n} as shorthand for self.settings['indent'] and self.settings['newline'].
         self.set_syntax('SQL')
 
         table = self.settings['default_variable']
