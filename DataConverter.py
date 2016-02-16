@@ -120,6 +120,7 @@ def sniff(sample):
     except _csv.Error:
         return 'excel'
 
+# Adding a format? Check if it belongs in no_space_formats or untyped_formats.
 
 
 class DataConverterCommand(sublime_plugin.TextCommand):
@@ -159,14 +160,18 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, **kwargs):
         try:
-            self.get_settings(kwargs)
+            # The format key in .sublime-commands must match the name of the function we want to call.
+            self.converter = getattr(self, kwargs.pop('format'))
+
+        except KeyError:
+            print("DataConverter: no format given")
+            return
+
+        try:
+            self.settings = self.get_settings(kwargs)
 
         except TypeError as e:
             print("DataConverter: TypeError fetching settings", e)
-            return
-
-        except Exception as e:
-            print("DataConverter: Error fetching settings. Did you specify a format?", e)
             return
 
         # If nothing is selected, select all.
@@ -182,8 +187,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             # Sniff if we haven't done this before, or we sniffed before.
             if 'dialect' not in self.settings or self.settings['dialect'] == 'sniffed':
                 self.settings['dialect'] = sniff(sample)
-
-            print('DataConverter: using dialect', self.settings['dialect'])
+                print('DataConverter: using dialect', self.settings['dialect'])
 
             headers = self.assign_headers(sample)
             #  This also assigns types (for typed formats)
@@ -203,47 +207,46 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def get_settings(self, kwargs):
         '''Get settings from kwargs, user settings.'''
 
+        settings = dict()
         user_settings = sublime.load_settings('DataConverter.sublime-settings')
-
-        # The format key in .sublime-commands must match the name of the function we want to call.
-        self.converter = getattr(self, kwargs['format'])
 
         # Headers
         # True, "sniff" or "never"
-        self.settings['headers'] = user_settings.get('headers')
+        settings['headers'] = user_settings.get('headers')
 
         # Whitespace
         # Combine headers for certain formats
-        self.settings['mergeheaders'] = kwargs['format'] in self.no_space_formats
+        settings['mergeheaders'] = kwargs['format'] in self.no_space_formats
 
         # Typing
-        self.settings['typed'] = kwargs['format'] not in self.untyped_formats
         # Don't like having 'not' in this expression, but it makes more sense to use
         # 'typed' from here on out, and it's less error prone to use the (smaller)
         # list of untyped formats.
+        settings['typed'] = kwargs['format'] not in self.untyped_formats
 
         # New lines
-        line_sep = user_settings.get('line_sep')
-        self.settings['newline'] = line_sep or '\n'
+        settings['newline'] = user_settings.get('line_sep') or '\n'
 
         user_quoting = user_settings.get('quoting', 'QUOTE_MINIMAL')
-        self.settings['quoting'] = getattr(csv, user_quoting, csv.QUOTE_MINIMAL)
+        settings['quoting'] = getattr(csv, user_quoting, csv.QUOTE_MINIMAL)
 
         # Indentation
         if (self.view.settings().get('translate_tabs_to_spaces')):
             tabsize = int(self.view.settings().get('tab_size', 4))
-            self.settings['indent'] = " " * tabsize
+            settings['indent'] = " " * tabsize
         else:
-            self.settings['indent'] = "\t"
+            settings['indent'] = "\t"
 
         # HTML characters
-        self.settings['html_utf8'] = user_settings.get('html_utf8', True)
+        settings['html_utf8'] = user_settings.get('html_utf8', True)
 
         # Dialect
         if user_settings.get('use_dialect', False):
-            self.settings['dialect'] = set_dialect(user_settings.get('use_dialect'), user_settings.get('dialects', {}))
+            settings['dialect'] = set_dialect(user_settings.get('use_dialect'), user_settings.get('dialects', {}))
 
-        self.settings['default_variable'] = user_settings.get('default_variable', 'DataConverter')
+        settings['default_variable'] = user_settings.get('default_variable', 'DataConverter')
+
+        return settings
 
         # These settings are solely for DSV converter.
         settings['output_delimiter'] = kwargs.get('output_delimiter')
