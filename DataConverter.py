@@ -6,6 +6,7 @@ import _csv
 import json
 import re
 import pprint
+from collections import OrderedDict
 try:
     import io
 except ImportError as e:
@@ -134,6 +135,14 @@ def _sqlite_type(t):
     else:
         return 'TEXT'
 
+
+def _length(x):
+    try:
+        return len(str(x))
+    except TypeError:
+        return 0
+
+
 # Adding a format? Check if it belongs in no_space_formats or untyped_formats.
 
 
@@ -161,6 +170,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     # These formats don't need to be checked for int/str/etc types.
     untyped_formats = (
         'dsv',
+        "gherkin",
         "html",
         "jira",
         "json",
@@ -434,6 +444,46 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return 'Dim ' + cell.format(c, r)[1:-3] + output
 
+    def _spaced_text(self, data, delimiter, row_decoration=None, field_format=None):
+        '''
+        General converter for formats with semantic text spacing
+
+        Args:
+            data (DictReader): Sequence of dicts
+            delimiter (str): division between each field
+            row_decoration (function): A function that takes row_length OrderedDict and returns str,
+                                       used for creating string that decorates top, bottom, and between header and rows.
+            field_format (str): format str for each field. default: ' {: <{fill}} '
+        '''
+        field_format = field_format or ' {: <{fill}} '
+
+        # Get the length of each field
+        field_lengths = OrderedDict((x, len(x)) for x in data.fieldnames)
+
+        _data = list(data)
+
+        for row in _data:
+            for k, v in row.items():
+                field_lengths[k] = max(field_lengths[k], _length(v))
+
+        row_sep = ''
+        if row_decoration:
+            row_sep = row_decoration(field_lengths)
+
+        if self.settings.get('has_header', False):
+            header = (field_format.format(f, fill=field_lengths[f]) for f in data.fieldnames)
+            head = delimiter + delimiter.join(header) + delimiter + self.settings['newline'] + row_sep
+        else:
+            head = ''
+
+        output_text = delimiter + (delimiter + self.settings['newline'] + delimiter).join(
+            delimiter.join(
+                field_format.format(row[f], fill=field_lengths[f]) for f in data.fieldnames
+            ) for row in _data
+        ) + delimiter + self.settings['newline'] + row_sep
+
+        return row_sep + head + output_text
+
     def dsv(self, data):
         '''
         Delimited tabular format converter
@@ -490,17 +540,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def gherkin(self, data):
         '''Cucumber/Gherkin converter'''
         self.set_syntax('Cucumber', 'Cucumber Steps')
-        output = "|"
-
-        for header in data.fieldnames:
-            output += header + "\t|"
-
-        output += self.settings['newline']
-
-        for row in data:
-            output += "|" + self.type_loop(row, data.fieldnames, "{1}\t|", 'nil') + self.settings['newline']
-
-        return output
+        return self._spaced_text(data, '|')
 
     def javascript(self, data):
         """JavaScript object converter"""
@@ -757,41 +797,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def text_table(self, data):
         """text table converter"""
         self.set_syntax('Text', 'Plain Text')
-        output_text, divline, field_length, _data = '|', '+', [], []
-
-        _data = [x for x in data]
-
-        for header in data.fieldnames:
-            length = len(header) + 1  # Add 1 to account for end-padding
-
-            for row in _data:
-                try:
-                    length = max(length, len(row[header]) + 1)
-                except TypeError:
-                    pass
-
-            field_length.append(length)
-            divline += '-' * (length + 1) + '+'
-            output_text += ' ' + header + ' ' * (length - len(header)) + '|'
-
-        divline += '{n}'
-
-        if self.settings.get('has_header', False):
-            output_text = '{0}{1}{{n}}{0}'.format(divline, output_text)
-        else:
-            output_text = divline
-
-        for row in _data:
-            row_text = '|'
-
-            for header, length in zip(data.fieldnames, field_length):
-                item = row[header] or ""
-                row_text += ' ' + item + ' ' * (length - len(item)) + '|'
-
-            output_text += row_text + "{n}"
-
-        output_text += divline
-        return output_text.format(n=self.settings['newline'])
+        return self._spaced_text(data, '|', lambda x: '+' + '+'.join('-' * (v + 2) for v in x.values()) + '+' + self.settings['newline'])
 
     def yaml(self, data):
         '''YAML Converter'''
