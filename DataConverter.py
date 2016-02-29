@@ -245,6 +245,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         self.settings['default_variable'] = user_settings.get('default_variable', 'DataConverter')
 
+        # These settings are solely for DSV converter.
+        settings['output_delimiter'] = kwargs.get('output_delimiter')
+
     def assign_headers(self, sample):
         '''Assign headers to the data set'''
         # Use the dialect to get the first line of the sample as a dict
@@ -406,6 +409,24 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         dim = 'Dim myArray({0},{1}){2}'.format(c, r - 1, self.settings['newline'])
 
         return dim + output
+
+    def dsv(self, data):
+        '''
+        Delimited tabular format converter
+        This is like taking coals to Newcastle, but useful for changing formats
+        '''
+        self.set_syntax('Plain Text')
+
+        sink = io.StringIO()
+        writer = csv.DictWriter(sink, data.fieldnames,
+                                delimiter=self.settings['output_delimiter'],
+                                lineterminator=self.settings['newline'])
+        if self.settings.get('has_header') is not False:
+            writer.writeheader()
+        writer.writerows(data)
+        sink.seek(0)
+        return sink.read()
+
 
     def html(self, data):
         """HTML Table converter."""

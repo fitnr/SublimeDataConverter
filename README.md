@@ -56,6 +56,8 @@ or this (JSON):
 * XML for data-driven Adobe Illustrator
 * YAML
 
+Additionally, DataConverter can convert between delimiters. By default, this includes commands to convert to CSV and TSV, and it's possible to add your own delimiter (create a `User.sublime-commands` file following the pattern in [`DataConverter.sublime-commands`](DataConverter.sublime-commands)).
+
 ### Configuration
 Check out [`DataConverter.sublime-settings`](DataConverter.sublime-settings) for a documented list of options.
 
