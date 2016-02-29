@@ -49,6 +49,7 @@ or this (JSON):
 * Python (list of dicts)
 * Python (list of lists)
 * Ruby
+* SQLite
 * text table
 * Wiki markup
 * XML
@@ -84,4 +85,4 @@ CSV containing Unicode characters aren't supported in the Sublime Text 2 version
 
 ## Contributing
 
-Pull requests with additional formats are encouraged. The YAML converter is well-commented as an introduction to how the package works.
+Pull requests with additional formats are encouraged.

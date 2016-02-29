@@ -17,6 +17,7 @@
   { "caption": "DataConverter: to Python dict", "command": "data_converter", "args": {"format": "python_dict" } },
   { "caption": "DataConverter: to Python lists", "command": "data_converter", "args": {"format": "python_list" } },
   { "caption": "DataConverter: to Ruby", "command": "data_converter", "args": {"format": "ruby" } },
+  { "caption": "DataConverter: to SQLite", "command": "data_converter", "args": {"format": "sqlite" } },
   { "caption": "DataConverter: to text table", "command": "data_converter", "args": {"format": "text_table" } },
   { "caption": "DataConverter: to TSV", "command": "data_converter", "args": {"format": "dsv", "output_delimiter": "\t" } },
   { "caption": "DataConverter: to wiki markup", "command": "data_converter", "args": {"format": "wiki" } },

@@ -125,6 +125,15 @@ def _mysql_type(t):
     else:
         return 'TEXT'
 
+
+def _sqlite_type(t):
+    if t == float:
+        return 'REAL'
+    elif t == int:
+        return 'INTEGER'
+    else:
+        return 'TEXT'
+
 # Adding a format? Check if it belongs in no_space_formats or untyped_formats.
 
 
@@ -143,6 +152,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         'actionscript',
         'javascript',
         'mysql',
+        'sqlite',
         'xml',
         'xml_properties',
         'yaml'
@@ -640,6 +650,20 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         output = linebreak.join(self.type_loop(row, '"{0}"=>{1}', null='nil') for row in data)
 
         return '[' + self.settings['newline'] + self.settings['indent'] + '{' + output + '}' + self.settings['newline'] + '];'
+
+    def sqlite(self, data):
+        '''SQLite converter'''
+        self.set_syntax('SQL')
+        table = self.settings['default_variable']
+        create_head = 'CREATE TABLE IF NOT EXISTS ' + table + ' ({n}{i}id INTEGER PRIMARY KEY ON CONFLICT FAIL AUTOINCREMENT,{n}'
+        create_fields = ',{n}{i}'.join(h + ' ' + _sqlite_type(t) for h, t in self.settings['types'])
+        create = create_head + '{i}' + create_fields + '{n});{n}'
+
+        # INSERT TABLE Statement
+        insert = 'INSERT INTO ' + table + "{n}{i}(" + ', '.join(data.fieldnames) + '){n}'
+
+        # VALUES list
+        values = "VALUES{n}{i}(" + ('),{n}{i}('.join(self.type_loop(row, field_format='{1}', null='NULL') for row in data))
 
         output = create + insert + values + ');'
         return output.format(i=self.settings['indent'], n=self.settings['newline'])
