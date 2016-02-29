@@ -1,0 +1,6 @@
+DataConverter 1.1.2
+-------------------
+
+Adds an SQLite converter and conversion between arbitrary CSV delimiters. Convert from TSV to CSV and back again!
+
+If you have a problem or there's a format you would like to see in DataConverter, visit https://github.com/fitnr/SublimeDataConverter/issues
