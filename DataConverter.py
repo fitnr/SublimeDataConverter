@@ -444,45 +444,58 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return 'Dim ' + cell.format(c, r)[1:-3] + output
 
-    def _spaced_text(self, data, delimiter, row_decoration=None, field_format=None):
+    def _spaced_text(self, data, delimiter, row_decoration=None, **kwargs):
         '''
         General converter for formats with semantic text spacing
 
         Args:
             data (DictReader): Sequence of dicts
             delimiter (str): division between each field
-            row_decoration (function): A function that takes row_length OrderedDict and returns str,
-                                       used for creating string that decorates top, bottom, and between header and rows.
+            row_decoration (function): A function that takes Sequence of row
+                                       lengths and returns a str used to optionally
+                                       decorate the top, bottom, and/ot between header and rows.
             field_format (str): format str for each field. default: ' {: <{fill}} '
+            top (bool): Add the row decoration to the top of the output.
+            between (bool): Add row decoration between the header and the row.
+            bottom (bool): Add row decoration after the output.
         '''
-        field_format = field_format or ' {: <{fill}} '
-
+        field_format = kwargs.get('field_format', ' {: <{fill}} ')
+        fieldnames = data.fieldnames
         # Get the length of each field
-        field_lengths = OrderedDict((x, len(x)) for x in data.fieldnames)
+        field_lengths = [len(x) for x in fieldnames]
 
-        _data = list(data)
+        data = list(data)
 
-        for row in _data:
+        for row in data:
             for k, v in row.items():
-                field_lengths[k] = max(field_lengths[k], _length(v))
+                field_lengths[fieldnames.index(k)] = max(field_lengths[fieldnames.index(k)], len(v))
 
         row_sep = ''
         if row_decoration:
             row_sep = row_decoration(field_lengths)
 
         if self.settings.get('has_header', False):
-            header = (field_format.format(f, fill=field_lengths[f]) for f in data.fieldnames)
-            head = delimiter + delimiter.join(header) + delimiter + self.settings['newline'] + row_sep
+            header = (field_format.format(f, fill=field_lengths[j]) for j, f in enumerate(fieldnames))
+            head = delimiter + delimiter.join(header) + delimiter + self.settings['newline']
+
+            if kwargs.get('top'):
+                head = row_sep + head
+
+            if kwargs.get('between'):
+                head += row_sep
         else:
             head = ''
 
         output_text = delimiter + (delimiter + self.settings['newline'] + delimiter).join(
             delimiter.join(
-                field_format.format(row[f], fill=field_lengths[f]) for f in data.fieldnames
-            ) for row in _data
-        ) + delimiter + self.settings['newline'] + row_sep
+                field_format.format(row[f], fill=field_lengths[j]) for j, f in enumerate(fieldnames)
+            ) for row in data
+        ) + delimiter + self.settings['newline']
 
-        return row_sep + head + output_text
+        if kwargs.get('after'):
+            output_text += row_sep
+
+        return head + output_text
 
     def dsv(self, data):
         '''
@@ -599,6 +612,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         keydict = {self._escape(row[key]): {k: v for k, v in row.items() if k != key} for row in data}
 
         return json.dumps(keydict, indent=len(self.settings['indent']), separators=(',', ':'))
+
+    def markdown(self, data):
+        """markdown table format"""
+        self.set_syntax('Text', 'Markdown')
+
+        def decorate(lengths):
+            fields = '|'.join(' ' + ('-' * v) + ' ' for v in lengths)
+            return '|' + fields + '|' + self.settings['newline']
+
+        return self._spaced_text(data, '|', decorate, between=True)
 
     def mysql(self, data):
         """MySQL converter"""
@@ -797,7 +820,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def text_table(self, data):
         """text table converter"""
         self.set_syntax('Text', 'Plain Text')
-        return self._spaced_text(data, '|', lambda x: '+' + '+'.join('-' * (v + 2) for v in x.values()) + '+' + self.settings['newline'])
+
+        def decorate(lengths):
+            return '+' + '+'.join('-' * (v + 2) for v in lengths) + '+' + self.settings['newline']
+
+        return self._spaced_text(data, '|', decorate, top=True, between=True, bottom=True)
 
     def yaml(self, data):
         '''YAML Converter'''
