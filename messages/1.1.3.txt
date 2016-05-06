@@ -1,0 +1,6 @@
+DataConverter 1.1.3
+-------------------
+
+Adds a Github-flavored Markdown table converter.
+
+If you have a problem or there's a format you would like to see in DataConverter, visit https://github.com/fitnr/SublimeDataConverter/issues
