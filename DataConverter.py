@@ -492,7 +492,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             ) for row in data
         ) + delimiter + self.settings['newline']
 
-        if kwargs.get('after'):
+        if kwargs.get('bottom'):
             output_text += row_sep
 
         return head + output_text
