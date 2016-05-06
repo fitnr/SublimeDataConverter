@@ -5,7 +5,7 @@
   { "caption": "DataConverter: to HTML table", "command": "data_converter", "args": {"format": "html" } },
   { "caption": "DataConverter: to Gherkin", "command": "data_converter", "args": {"format": "gherkin" } },
   { "caption": "DataConverter: to JavaScript object", "command": "data_converter", "args": {"format": "javascript" } },
-  { "caption": "DataConverter: to JIRA", "command": "data_converter", "args": {"format": "jira" } },
+  { "caption": "DataConverter: to JIRA table", "command": "data_converter", "args": {"format": "jira" } },
   { "caption": "DataConverter: to JSON", "command": "data_converter", "args": {"format": "json" } },
   { "caption": "DataConverter: to JSON (array of columns)", "command": "data_converter", "args": {"format": "json_columns" } },
   { "caption": "DataConverter: to JSON (array of rows)", "command": "data_converter", "args": {"format": "json_rows" } },

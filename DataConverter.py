@@ -45,7 +45,7 @@ def get_type(datum):
         return type(None)
 
 
-def parse_types(reader, headers):
+def parse_types(reader):
     """ Return a list containing a best guess for the types of data in each column. """
     output_types, types = [], []
 
@@ -354,7 +354,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('has_header', False) is True:
             next(typer)
 
-        types = parse_types(typer, headers)
+        types = parse_types(typer)
 
         return list(types)
 
@@ -382,7 +382,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def _escape(self, string):
         '''Add an escape character in front of a quote character in given string.'''
-        return string.replace(self.quotechar, self.escapechar + self.quotechar)
+        return (string or '').replace(self.quotechar, self.escapechar + self.quotechar)
 
     def type_loop(self, row, field_format, field_break=None, null=None):
         """
@@ -435,7 +435,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for r, row in enumerate(data):
             for c, (value, item_type) in enumerate(zip(row, self.settings['types'])):
                 if item_type == str:
-                    value = '"{}"'.format(self._escape(value or ''))
+                    value = '"{}"'.format(self._escape(value))
                 elif item_type is None:
                     value = 'null'
 
@@ -538,8 +538,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for row in data:
             rowText = ""
 
-            for key in self.headers:
-                rowText += '{i}{i}{i}<td>' + self._escape(row[key] or "") + '</td>{n}'
+            for r in row:
+                rowText += '{i}{i}{i}<td>' + self._escape(r) + '</td>{n}'
 
             tbody += tr(rowText)
 
