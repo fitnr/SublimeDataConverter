@@ -6,7 +6,6 @@ import _csv
 import json
 import re
 import pprint
-from collections import OrderedDict
 try:
     import io
 except ImportError as e:
@@ -61,13 +60,7 @@ def parse_types(reader, headers):
             print('DataConverter: Error parsing', e)
             break
 
-        tmp = []
-
-        for h in headers:
-            typ = get_type(row[h])
-            tmp.append(typ)
-
-        types.append(tmp)
+        types.append([get_type(r) for r in row])
 
     # rotate the array
     types = list(zip(*types))
@@ -153,7 +146,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     settings = dict()
     escapechar = '\\'
     quotechar = '"'
-
+    headers = []
     converter = None
 
     # These format can't have spaces in field names. By default, spaces replaced with "_".
@@ -215,11 +208,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 self.settings['dialect'] = sniff(sample)
                 print('DataConverter: using dialect', self.settings['dialect'])
 
-            headers = self.assign_headers(sample)
-            data = self.import_csv(selection, headers)
+            self.headers = self.assign_headers(sample)
+            data = self.import_csv(selection)
 
             # Assign a list of tuples (headername, type)
-            self.settings['types'] = self.get_types(selection, headers)
+            self.settings['types'] = self.get_types(selection, self.headers)
             print('DataConverter found these fields and types:', self.settings['types'])
 
             # Run converter
@@ -277,6 +270,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # These settings are solely for DSV converter.
         settings['output_delimiter'] = kwargs.get('output_delimiter')
+        settings['output_dialect'] = kwargs.get('output_dialect')
 
         return settings
 
@@ -328,7 +322,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return headers
 
-    def import_csv(self, selection, headers):
+    def import_csv(self, selection):
         '''Read CSV data from file into a StringIO object.'''
         # Remove header from entries that came with one.
         if self.settings.get('has_header', False) is True:
@@ -336,10 +330,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         csvIO = io.StringIO(selection)
 
-        reader = csv.DictReader(
+        reader = csv.reader(
             csvIO,
-            fieldnames=headers,
             dialect=self.settings['dialect'])
+
+        if self.settings.get('has_header', False) is True:
+            next(reader)
 
         return reader
 
@@ -351,14 +347,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('has_header', False) is True:
             selection = selection[selection.find(self.settings['newline']):]
 
-        typer = csv.DictReader(
+        typer = csv.reader(
             io.StringIO(selection),
-            fieldnames=headers,
             dialect=self.settings['dialect']
         )
+        if self.settings.get('has_header', False) is True:
+            next(typer)
+
         types = parse_types(typer, headers)
 
-        return list(zip(headers, types))
+        return list(types)
 
     def deselect(self):
         """Remove selection and place pointer at top of document (adapted from https://gist.github.com/1608283)."""
@@ -392,7 +390,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         Strings get quoted, floats and ints don't.
 
         Args:
-            row (dict): returned from DictReader
+            row (list): returned from csv.reader
             field_format (str): format for a single field
             field_break (str): break between fields (default: ', ').
             null (str): Text to use for None values (default: 'null').
@@ -404,15 +402,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         null = null or 'null'
 
         # Creates escaped or proper NULL representation of a value.
-        def applytypes(key, typ):
-            if key not in row or row[key] is None:
+        def applytype(key, typ):
+            if key < 0 or key >= len(row) or row[key] is None:
                 return null
             elif typ == str:
                 return '"{}"'.format(self._escape(row[key]))
             else:
                 return row[key]
 
-        return field_break.join(field_format.format(field, applytypes(field, typ)) for field, typ in self.settings['types'])
+        return field_break.join(field_format.format(field=self.headers[i], value=applytype(i, t))
+                                for i, t in enumerate(self.settings['types']))
 
     # Converters
     # Note that converters should call self.set_syntax
@@ -422,25 +421,25 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('ActionScript')
         n = self.settings['newline'] + self.settings['indent']
         linebreak = '},' + n + '{'
-        output = linebreak.join(self.type_loop(row, '{0}: {1}', field_break=', ') for row in data)
+        output = linebreak.join(self.type_loop(row, '{field}: {value}', field_break=', ') for row in data)
         return '[' + n + '{' + output + '}' + self.settings['newline'] + '];'
 
     # ASP / VBScript
     def asp(self, data):
         self.set_syntax('ASP')
-        #comment, comment_end = "'", ""
+        # comment, comment_end = "'", ""
         output = ''
         c, r = 0, 0
         cell = self.settings['newline'] + self.settings['default_variable'] + '({0},{1}) = '
 
         for r, row in enumerate(data):
-            for c, (key, item_type) in enumerate(self.settings['types']):
+            for c, (value, item_type) in enumerate(zip(row, self.settings['types'])):
                 if item_type == str:
-                    row[key] = '"{}"'.format(self._escape(row.get(key) or ''))
+                    value = '"{}"'.format(self._escape(value or ''))
                 elif item_type is None:
-                    row[key] = 'null'
+                    value = 'null'
 
-                output += cell.format(c, r) + row[key]
+                output += cell.format(c, r) + value
 
         return 'Dim ' + cell.format(c, r)[1:-3] + output
 
@@ -449,7 +448,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         General converter for formats with semantic text spacing
 
         Args:
-            data (DictReader): Sequence of dicts
+            data (csv.reader): Sequence of lists
             delimiter (str): division between each field
             row_decoration (function): A function that takes Sequence of row
                                        lengths and returns a str used to optionally
@@ -460,22 +459,22 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             bottom (bool): Add row decoration after the output.
         '''
         field_format = kwargs.get('field_format', ' {: <{fill}} ')
-        fieldnames = data.fieldnames
+
         # Get the length of each field
-        field_lengths = [len(x) for x in fieldnames]
+        lengths = [len(x) for x in self.headers]
 
         data = list(data)
 
         for row in data:
-            for k, v in row.items():
-                field_lengths[fieldnames.index(k)] = max(field_lengths[fieldnames.index(k)], len(v))
+            for i, v in enumerate(row):
+                lengths[i] = max(lengths[i], len(v))
 
         row_sep = ''
         if row_decoration:
-            row_sep = row_decoration(field_lengths)
+            row_sep = row_decoration(lengths)
 
         if self.settings.get('has_header', False):
-            header = (field_format.format(f, fill=field_lengths[j]) for j, f in enumerate(fieldnames))
+            header = (field_format.format(f, fill=j) for f, j in zip(self.headers, lengths))
             head = delimiter + delimiter.join(header) + delimiter + self.settings['newline']
 
             if kwargs.get('top'):
@@ -488,7 +487,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         output_text = delimiter + (delimiter + self.settings['newline'] + delimiter).join(
             delimiter.join(
-                field_format.format(row[f], fill=field_lengths[j]) for j, f in enumerate(fieldnames)
+                field_format.format(f, fill=j) for f, j in zip(row, lengths)
             ) for row in data
         ) + delimiter + self.settings['newline']
 
@@ -499,17 +498,18 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def dsv(self, data):
         '''
-        Delimited tabular format converter
-        This is like taking coals to Newcastle, but useful for changing formats
+            Delimited tabular format converter.
+            This is like taking coals to Newcastle, but useful for changing formats
         '''
         self.set_syntax('Plain Text')
 
         sink = io.StringIO()
-        writer = csv.DictWriter(sink, data.fieldnames,
-                                delimiter=self.settings['output_delimiter'],
-                                lineterminator=self.settings['newline'])
+        writer = csv.writer(sink,
+                            dialect=self.settings.get('output_dialect'),
+                            delimiter=self.settings.get('output_delimiter'),
+                            lineterminator=self.settings.get('newline', '\n'))
         if self.settings.get('has_header') is not False:
-            writer.writeheader()
+            writer.writerow(self.headers)
         writer.writerows(data)
         sink.seek(0)
         return sink.read()
@@ -527,8 +527,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('has_header') is True:
 
             th = '{i}{i}{i}<th>' + (
-                    '</th>{n}{i}{i}{i}<th>'.join(header for header in data.fieldnames)
-                ) + '</th>{n}'
+                '</th>{n}{i}{i}{i}<th>'.join(self.headers)
+            ) + '</th>{n}'
 
             thead = '{i}<thead>{n}' + tr(th) + '{i}</thead>{n}'
         else:
@@ -538,7 +538,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for row in data:
             rowText = ""
 
-            for key in data.fieldnames:
+            for key in self.headers:
                 rowText += '{i}{i}{i}<td>' + self._escape(row[key] or "") + '</td>{n}'
 
             tbody += tr(rowText)
@@ -561,56 +561,38 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         linebreak = '},' + self.settings['newline'] + self.settings['indent'] + '{'
 
-        content = '{' + linebreak.join(self.type_loop(r, '"{0}": {1}', ', ') for r in data) + '}'
+        content = '{' + linebreak.join(self.type_loop(r, '"{field}": {value}', ', ') for r in data) + '}'
 
         return '[' + self.settings['newline'] + self.settings['indent'] + content + self.settings['newline'] + '];'
 
     def jira(self, data):
-        head = '||' + ('||').join(data.fieldnames) + '||' + self.settings['newline']
+        head = '||' + ('||').join(self.headers) + '||' + self.settings['newline']
 
-        fmt = '|' + ('|'.join('{' + x + '}' for x in data.fieldnames)) + '|'
+        fmt = '|' + ('|{}' * len(self.headers)) + '|'
         print('DataConverter: Formatting JIRA row with', fmt)
-        content = (self.settings['newline']).join(fmt.format(**r) for r in data)
+        content = (self.settings['newline']).join(fmt.format(*r) for r in data)
 
         return head + content + self.settings['newline']
 
     def json(self, data):
         """JSON properties converter"""
         self.set_syntax('JavaScript', 'JSON')
-        return json.dumps([row for row in data], ensure_ascii=False)
+        return json.dumps([dict(zip(self.headers, row)) for row in data], ensure_ascii=False)
 
     def json_columns(self, data):
         """JSON Array of Columns converter"""
         self.set_syntax('JavaScript', 'JSON')
-        colDict = {}
-
-        for row in data:
-            for key, item in row.items():
-                if key not in colDict:
-                    colDict[key] = []
-                colDict[key].append(item)
-        return json.dumps(colDict, indent=len(self.settings['indent']), separators=(',', ':'))
+        return json.dumps(list(zip(*data)), indent=len(self.settings['indent']), separators=(',', ':'))
 
     def json_rows(self, data):
         """JSON Array of Rows converter"""
         self.set_syntax('JavaScript', 'JSON')
-        rowArrays = []
-
-        for row in data:
-            itemlist = []
-            for item in row.values():
-                itemlist.append(item)
-            rowArrays.append(itemlist)
-
-        return json.dumps(rowArrays, indent=len(self.settings['indent']), separators=(',', ':'))
+        return json.dumps(list(data), indent=len(self.settings['indent']), separators=(',', ':'))
 
     def json_keyed(self, data):
         """JSON, first row is key"""
         self.set_syntax('JavaScript', 'JSON')
-
-        key = data.fieldnames[0]
-        keydict = {self._escape(row[key]): {k: v for k, v in row.items() if k != key} for row in data}
-
+        keydict = {self._escape(row[0]): {k: v for k, v in zip(self.headers, row)} for row in data}
         return json.dumps(keydict, indent=len(self.settings['indent']), separators=(',', ':'))
 
     def markdown(self, data):
@@ -631,15 +613,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         # CREATE TABLE statement
         create_head = 'CREATE TABLE IF NOT EXISTS' + table + ' ({n}{i}id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,{n}'
-        create_fields = ',{n}{i}'.join(h + ' ' + _mysql_type(t) for h, t in self.settings['types'])
+        create_fields = ',{n}{i}'.join(h + ' ' + _mysql_type(t) for h, t in zip(self.headers, self.settings['types']))
 
         create = create_head + '{i}' + create_fields + '{n}) CHARACTER SET utf8;{n}'
 
         # INSERT TABLE Statement
-        insert = 'INSERT INTO ' + table + "{n}{i}(" + ', '.join(data.fieldnames) + '){n}'
+        insert = 'INSERT INTO ' + table + "{n}{i}(" + ', '.join(self.headers) + '){n}'
 
         # VALUES list
-        values = "VALUES{n}{i}(" + ('),{n}{i}('.join(self.type_loop(row, field_format='{1}', null='NULL') for row in data))
+        values = "VALUES{n}{i}(" + \
+            ('),{n}{i}('.join(self.type_loop(row, field_format='{value}', null='NULL') for row in data))
 
         output = create + insert + values + ');'
         return output.format(i=self.settings['indent'], n=self.settings['newline'])
@@ -649,7 +632,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('Perl')
 
         linebreak = "}," + self.settings['newline'] + "{"
-        output = linebreak.join(self.type_loop(r, '"{0}"=>{1}', null='undef') for r in data)
+        output = linebreak.join(self.type_loop(r, '"{field}"=>{value}', null='undef') for r in data)
 
         return "[" + self.settings['newline'] + '{' + output + '}' + self.settings['newline'] + '];'
 
@@ -658,7 +641,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('PHP')
 
         return array_open + self.settings['newline'] + ("," + self.settings['newline']).join(
-            self.settings['indent'] + array_open + self.type_loop(row, '"{0}"=>{1}') + array_close
+            self.settings['indent'] + array_open + self.type_loop(row, '"{field}"=>{value}') + array_close
             for row in data
         ) + self.settings['newline'] + array_close + ";"
 
@@ -676,7 +659,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         fields = []
         for row in data:
             outrow = {}
-            for k, t in self.settings['types']:
+            for k, t in zip(self.headers, self.settings['types']):
                 if t == int:
                     outrow[k] = int(row[k])
                 elif t == float:
@@ -690,19 +673,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def python_list(self, data):
         """Python list of lists converter"""
         self.set_syntax('Python')
-        fields = []
-        for row in data:
-            outrow = []
-            for k, t in self.settings['types']:
-                if t == int:
-                    outrow.append(int(row[k]))
-                elif t == float:
-                    outrow.append(float(row[k]))
-                else:
-                    outrow.append(row[k])
-            fields.append(outrow)
-
-        return '# headers = ' + repr(data.fieldnames) + self.settings['newline'] + pprint.pformat(fields)
+        fields = [[t(r) for r, t in zip(row, self.settings['types'])] for row in data]
+        return '# headers = ' + repr(self.headers) + self.settings['newline'] + pprint.pformat(fields)
 
     def ruby(self, data):
         """Ruby converter"""
@@ -710,7 +682,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         # comment, comment_end = "#", ""
 
         linebreak = '},' + self.settings['newline'] + self.settings['indent'] + '{'
-        output = linebreak.join(self.type_loop(row, '"{0}"=>{1}', null='nil') for row in data)
+        output = linebreak.join(self.type_loop(row, '"{field}"=>{value}', null='nil') for row in data)
 
         return '[' + self.settings['newline'] + self.settings['indent'] + '{' + output + '}' + self.settings['newline'] + '];'
 
@@ -718,15 +690,17 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         '''SQLite converter'''
         self.set_syntax('SQL')
         table = self.settings['default_variable']
-        create_head = 'CREATE TABLE IF NOT EXISTS ' + table + ' ({n}{i}id INTEGER PRIMARY KEY ON CONFLICT FAIL AUTOINCREMENT,{n}'
-        create_fields = ',{n}{i}'.join(h + ' ' + _sqlite_type(t) for h, t in self.settings['types'])
+        create_head = 'CREATE TABLE IF NOT EXISTS ' + table + \
+            ' ({n}{i}id INTEGER PRIMARY KEY ON CONFLICT FAIL AUTOINCREMENT,{n}'
+        create_fields = ',{n}{i}'.join(h + ' ' + _sqlite_type(t) for h, t in zip(self.headers, self.settings['types']))
         create = create_head + '{i}' + create_fields + '{n});{n}'
 
         # INSERT TABLE Statement
-        insert = 'INSERT INTO ' + table + "{n}{i}(" + ', '.join(data.fieldnames) + '){n}'
+        insert = 'INSERT INTO ' + table + "{n}{i}(" + ', '.join(self.headers) + '){n}'
 
         # VALUES list
-        values = "VALUES{n}{i}(" + ('),{n}{i}('.join(self.type_loop(row, field_format='{1}', null='NULL') for row in data))
+        values = "VALUES{n}{i}(" + \
+            ('),{n}{i}('.join(self.type_loop(row, field_format='{value}', null='NULL') for row in data))
 
         output = create + insert + values + ');'
         return output.format(i=self.settings['indent'], n=self.settings['newline'])
@@ -737,83 +711,92 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         linebreak = '{0}|-{0}|'.format(n)
 
-        header = '{| class="wikitable"' + n + '!' + ('!!').join(data.fieldnames)
+        header = '{| class="wikitable"' + n + '!' + ('!!').join(self.headers)
 
-        return header + linebreak + linebreak.join(self.type_loop(row, '{1}', '||') for row in data) + n + '|}'
+        return header + linebreak + linebreak.join(self.type_loop(row, '{value}', '||') for row in data) + n + '|}'
 
     def xml(self, data):
         """XML Nodes converter"""
         self.set_syntax('XML')
         output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
 
-        for row in data:
-            output_text += '{i}<row>{n}'
-            for header in data.fieldnames:
-                output_text += '{i}{i}<{1}>{0}</{1}>{n}'.format(row[header] or '', header, i=self.settings['indent'], n=self.settings['newline'])
+        elem = '{{i}}{{i}}<{1}>{0}</{1}>'
 
-            output_text += "{i}</row>{n}"
+        output_text += '{n}'.join(
+            '{i}<row>{n}' + '{n}'.join(
+                elem.format(value or "", head) for head, value in zip(self.headers, row)
+            ) + "{n}{i}</row>"
+            for row in data
+        )
 
         output_text += "</rows>"
 
-        return output_text.format(i=self.settings['indent'], n=self.settings['newline']).encode('ascii', 'xmlcharrefreplace').decode('ascii', 'xmlcharrefreplace')
+        return (output_text.format(i=self.settings['indent'], n=self.settings['newline'])
+                .encode('ascii', 'xmlcharrefreplace')
+                .decode('ascii', 'xmlcharrefreplace'))
 
     def xml_properties(self, data):
         """XML properties converter"""
         self.set_syntax('XML')
         output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
+        output_text += '{n}'.join(
+            "{i}<row " +
+            ' '.join('{0}="{1}"'.format(head, value or "") for head, value in zip(self.headers, row)) +
+            "></row>"
+            for row in data
+        )
+        output_text += "{n}</rows>"
 
-        for row in data:
-            row_list = []
-
-            for header in data.fieldnames:
-                item = row[header] or ""
-                row_list.append('{0}="{1}"'.format(header, item))
-                row_text = " ".join(row_list)
-
-            output_text += "{i}<row " + row_text + "></row>{n}"
-
-        output_text += "</rows>"
-
-        return output_text.format(i=self.settings['indent'], n=self.settings['newline']).encode('ascii', 'xmlcharrefreplace').decode('ascii', 'xmlcharrefreplace')
+        return (output_text.format(i=self.settings['indent'], n=self.settings['newline'])
+                .encode('ascii', 'xmlcharrefreplace')
+                .decode('ascii'))
 
     def xml_illustrator(self, data):
         '''Convert to Illustrator XML format'''
         self.set_syntax('XML')
 
-        output = '<?xml version="1.0" encoding="utf-8"?>' + '{n}'
-        output += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20001102//EN"    "http://www.w3.org/TR/2000/CR-SVG-20001102/DTD/svg-20001102.dtd" [' + '{n}'
-        output += '{i}' + '<!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">' + '{n}'
-        output += '{i}' + '<!ENTITY ns_vars "http://ns.adobe.com/Variables/1.0/">' + '{n}'
-        output += '{i}' + '<!ENTITY ns_imrep "http://ns.adobe.com/ImageReplacement/1.0/">' + '{n}'
-        output += '{i}' + '<!ENTITY ns_custom "http://ns.adobe.com/GenericCustomNamespace/1.0/">' + '{n}'
-        output += '{i}' + '<!ENTITY ns_flows "http://ns.adobe.com/Flows/1.0/">' + '{n}'
-        output += '{i}' + '<!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">' + '{n}'
-        output += ']>' + '{n}'
-        output += '<svg>' + '{n}'
-        output += '<variableSets  xmlns="&ns_vars;">' + '{n}'
-        output += '{i}' + '<variableSet  varSetName="binding1" locked="none">' + '{n}'
-        output += '{i}{i}' + '<variables>' + '{n}'
+        output = (
+            '<?xml version="1.0" encoding="utf-8"?>{n}'
+            '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20001102//EN"    '
+            '"http://www.w3.org/TR/2000/CR-SVG-20001102/DTD/svg-20001102.dtd" [{n}'
+            '{i}<!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">{n}'
+            '{i}<!ENTITY ns_vars "http://ns.adobe.com/Variables/1.0/">{n}'
+            '{i}<!ENTITY ns_imrep "http://ns.adobe.com/ImageReplacement/1.0/">{n}'
+            '{i}<!ENTITY ns_custom "http://ns.adobe.com/GenericCustomNamespace/1.0/">{n}'
+            '{i}<!ENTITY ns_flows "http://ns.adobe.com/Flows/1.0/">{n}'
+            '{i}<!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">{n}'
+            ']>{n}'
+            '<svg>{n}'
+            '<variableSets  xmlns="&ns_vars;">{n}'
+            '{i}<variableSet  varSetName="binding1" locked="none">{n}'
+            '{i}{i}<variables>{n}'
+        )
 
-        for header in data.fieldnames:
-            output += ('{i}' * 3) + '<variable varName="' + header + '" trait="textcontent" category="&ns_flows;"></variable>' + '{n}'
+        for header in self.headers:
+            output += ('{i}' * 3) + '<variable varName="' + header + \
+                '" trait="textcontent" category="&ns_flows;"></variable>' + '{n}'
 
-        output += '{i}{i}' + '</variables>' + '{n}'
-        output += '{i}{i}' + '<v:sampleDataSets  xmlns:v="http://ns.adobe.com/Variables/1.0/" xmlns="http://ns.adobe.com/GenericCustomNamespace/1.0/">' + '{n}'
+        output += (
+            '{i}{i}</variables>{n}'
+            '{i}{i}'
+            '<v:sampleDataSets  '
+            'xmlns:v="http://ns.adobe.com/Variables/1.0/" '
+            'xmlns="http://ns.adobe.com/GenericCustomNamespace/1.0/">{n}'
+        )
+
+        field = ('{{i}}' * 4) + '<{field}>{{n}}' + ('{{i}}' * 5) + '<p>{value}</p>{{n}}' + ('{{i}}' * 4) + '</{field}>'
 
         for row in data:
-            output += ('{i}' * 3) + '<v:sampleDataSet dataSetName="' + row[data.fieldnames[0]] + '">' + '{n}'
+            output += ('{i}' * 3) + '<v:sampleDataSet dataSetName="' + row[0] + '">{n}'
+            output += '{n}'.join(field.format(field=f, value=v) for f, v in zip(self.headers, row)) + '{n}'
+            output += ('{i}' * 3) + '</v:sampleDataSet>{n}'
 
-            for field in data.fieldnames:
-                output += ('{i}' * 4) + '<' + field + '>' + '{n}'
-                output += ('{i}' * 5) + '<p>' + row[field] + '</p>' + '{n}'
-                output += ('{i}' * 4) + '</' + field + '>' + '{n}'
-
-            output += ('{i}' * 3) + '</v:sampleDataSet>' + '{n}'
-
-        output += '{i}{i}' + '</v:sampleDataSets>' + '{n}'
-        output += '{i}' + '</variableSet>' + '{n}'
-        output += '</variableSets>' + '{n}'
-        output += '</svg>' + '{n}'
+        output += (
+            '{i}{i}</v:sampleDataSets>{n}'
+            '{i}</variableSet>{n}'
+            '</variableSets>{n}'
+            '</svg>{n}'
+        )
 
         return output.format(i=self.settings['indent'], n=self.settings['newline'])
 
@@ -830,5 +813,5 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         '''YAML Converter'''
         self.set_syntax('YAML')
         linebreak = '{n}-{n}{i}'
-        rows = (self.type_loop(r, '{0}: {1}', '{n}{i}') for r in data)
+        rows = (self.type_loop(r, '{field}: {value}', '{n}{i}') for r in data)
         return ('---' + linebreak + linebreak.join(rows) + '{n}').format(n=self.settings['newline'], i=self.settings['indent'])
