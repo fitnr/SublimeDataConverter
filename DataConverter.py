@@ -231,9 +231,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             self.headers = self.assign_headers(sample)
             data = self.import_csv(selection)
 
-            # Assign a list of tuples (headername, type)
-            self.settings['types'] = self.get_types(selection, self.headers)
-            print('DataConverter found these fields and types:', self.settings['types'])
+            if self.settings['typed']:
+                # Assign a list of tuples (headername, type)
+                self.settings['types'] = self.get_types(selection, self.headers)
+                print('DataConverter found these fields and types:', self.settings['types'])
 
             # Run converter
             converted = self.converter(data)
