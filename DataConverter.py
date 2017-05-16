@@ -3,7 +3,8 @@ import csv
 import _csv
 import json
 import re
-from itertools import zip_longest
+from itertools import chain, zip_longest
+import unicodedata
 from pprint import pformat
 import sublime
 import sublime_plugin
@@ -155,6 +156,15 @@ def _cast(value, typ_):
     except TypeError:
         return value
 
+
+def _countcombining(string):
+    '''Count combining diacretics in a string.'''
+    return sum(unicodedata.combining(c) > 0 for c in string)
+
+
+def _countwide(string):
+    '''Count the numer of wide characters in a string.'''
+    return sum(unicodedata.east_asian_width(char) == 'W' for char in string)
 
 # Adding a format? Check if it belongs in no_space_formats or untyped_formats.
 
@@ -477,7 +487,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             delimiter (str): division between each field
             row_decoration (function): A function that takes Sequence of row
                                        lengths and returns a str used to optionally
-                                       decorate the top, bottom, and/ot between header and rows.
+                                       decorate the top, bottom, and/or between header and rows.
             field_format (str): format str for each field. default: ' {: <{fill}} '
             top (bool): Add the row decoration to the top of the output.
             between (bool): Add row decoration between the header and the row.
@@ -485,41 +495,44 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         '''
         field_format = kwargs.get('field_format', ' {: <{fill}} ')
 
-        # Get the length of each field
-        lengths = [len(x) for x in self.headers]
-
+        # Convert data set from generator to list.
         data = list(data)
 
+        # Get the length of each field
+        lengths = [len(x) for x in self.headers]
         for row in data:
-            for i, v in enumerate(row):
-                lengths[i] = max(lengths[i], len(v))
+            cells = (len(unicodedata.normalize('NFKC', val)) + _countwide(val) for val in row)
+            lengths = [max(i, j) for i, j in zip_longest(lengths, cells, fillvalue=0)]
 
-        row_sep = ''
-        if row_decoration:
-            row_sep = row_decoration(lengths)
+        def format_row(row):
+            '''Helper function that generates a sequence of formatted cells'''
+            for value, width in zip_longest(row, lengths, fillvalue=''):
+                # Account for fullwidth ideographs and uncombined combining diacretics.
+                yield field_format.format(value, fill=width + _countcombining(value) - _countwide(value))
 
+        # Define optional string between lines
+        row_sep = row_decoration(lengths) if row_decoration else ''
+
+        # generate a list, "head", that contains the header. It will be concat'ed with the data at the end.
+        head = []
         if self.settings.get('has_header', False):
-            header = (field_format.format(f, fill=j) for f, j in zip(self.headers, lengths))
-            head = delimiter + delimiter.join(header) + delimiter + self.settings['newline']
-
             if kwargs.get('top'):
-                head = row_sep + head
+                head.append(row_sep)
+
+            head.append(delimiter + delimiter.join(format_row(self.headers)) + delimiter)
 
             if kwargs.get('between'):
-                head += row_sep
-        else:
-            head = ''
+                head.append(row_sep)
 
-        output_text = delimiter + (delimiter + self.settings['newline'] + delimiter).join(
-            delimiter.join(
-                field_format.format(f, fill=j) for f, j in zip(row, lengths)
-            ) for row in data
-        ) + delimiter + self.settings['newline']
+        # Add an optional footer below the construction
+        bottom = [row_sep] if kwargs.get('bottom') else []
 
-        if kwargs.get('bottom'):
-            output_text += row_sep
-
-        return head + output_text
+        # Join header and formatted body together
+        return self.settings['newline'].join(chain(
+            head,
+            (delimiter + delimiter.join(format_row(row)) + delimiter for row in data),
+            bottom
+        )) + self.settings['newline']
 
     def dsv(self, data):
         '''
@@ -626,7 +639,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         def decorate(lengths):
             fields = '|'.join(' ' + ('-' * v) + ' ' for v in lengths)
-            return '|' + fields + '|' + self.settings['newline']
+            return '|' + fields + '|'
 
         return self._spaced_text(data, '|', decorate, between=True)
 
@@ -818,7 +831,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('Text', 'Plain Text')
 
         def decorate(lengths):
-            return '+' + '+'.join('-' * (v + 2) for v in lengths) + '+' + self.settings['newline']
+            return '+' + '+'.join('-' * (v + 2) for v in lengths) + '+'
 
         return self._spaced_text(data, '|', decorate, top=True, between=True, bottom=True)
 
