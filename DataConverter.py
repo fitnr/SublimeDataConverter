@@ -373,20 +373,24 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.view.sel().add(sublime.Region(top, top))
 
     def set_syntax(self, path, file_name=False):
+        '''Set the view's syntax'''
         if not file_name:
             file_name = path
 
-        file_name = file_name + '.tmLanguage'
-        new_syntax = sublime_format_path('/'.join(['Packages', path, file_name]))
-
+        new_syntax = sublime_format_path('/'.join(('Packages', path, file_name + '.sublime-syntax')))
         current_syntax = self.view.settings().get('syntax')
 
         if new_syntax != current_syntax:
             try:
                 sublime.load_resource(new_syntax)
                 self.view.set_syntax_file(new_syntax)
-            except Exception:
-                print("Unable to set syntax.")
+            except OSError:
+                new_syntax = new_syntax.replace('.sublime-syntax', '.tmLanguage')
+                try:
+                    sublime.load_resource(new_syntax)
+                    self.view.set_syntax_file(new_syntax)
+                except OSError as err:
+                    print("DataConverter: Unable to set syntax ({}).".format(err))
 
     def _escape(self, string):
         '''Add an escape character in front of a quote character in given string.'''
