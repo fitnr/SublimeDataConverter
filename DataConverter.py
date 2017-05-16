@@ -138,6 +138,9 @@ def _postgres_type(t):
     else:
         return 'text'
 
+def _escape(string):
+    '''Escape &, < and >'''
+    return string.replace('<', '&lt;').replace('>', '&gt;')
 
 def _length(x):
     try:
@@ -734,38 +737,27 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def xml(self, data):
         """XML Nodes converter"""
         self.set_syntax('XML')
-        output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
-
         elem = '{{i}}{{i}}<{1}>{0}</{1}>'
-
-        output_text += '{n}'.join(
+        rows = '{n}'.join(
             '{i}<row>{n}' + '{n}'.join(
-                elem.format(value or "", head) for head, value in zip(self.headers, row)
+                elem.format(_escape(value or ""), head) for head, value in zip(self.headers, row)
             ) + "{n}{i}</row>"
             for row in data
         )
-
-        output_text += "</rows>"
-
-        return (output_text.format(i=self.settings['indent'], n=self.settings['newline'])
-                .encode('ascii', 'xmlcharrefreplace')
-                .decode('ascii', 'xmlcharrefreplace'))
+        output = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}' + rows + "</rows>"
+        return output.format(i=self.settings['indent'], n=self.settings['newline'])
 
     def xml_properties(self, data):
         """XML properties converter"""
         self.set_syntax('XML')
-        output_text = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}'
-        output_text += '{n}'.join(
+        rows = '{n}'.join(
             "{i}<row " +
             ' '.join('{0}="{1}"'.format(head, value or "") for head, value in zip(self.headers, row)) +
             "></row>"
             for row in data
         )
-        output_text += "{n}</rows>"
-
-        return (output_text.format(i=self.settings['indent'], n=self.settings['newline'])
-                .encode('ascii', 'xmlcharrefreplace')
-                .decode('ascii'))
+        output = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}' + rows + "{n}</rows>"
+        return output.format(i=self.settings['indent'], n=self.settings['newline'])
 
     def xml_illustrator(self, data):
         '''Convert to Illustrator XML format'''
@@ -805,7 +797,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for row in data:
             output += (
                 ('{i}' * 3) + '<v:sampleDataSet dataSetName="' + row[0] + '">{n}' +
-                '{n}'.join(field.format(field=f, value=v) for f, v in zip(self.headers, row)) + '{n}' +
+                '{n}'.join(field.format(field=f, value=_escape(v)) for f, v in zip(self.headers, row)) + '{n}' +
                 ('{i}' * 3) + '</v:sampleDataSet>{n}'
             )
 
