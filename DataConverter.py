@@ -165,7 +165,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     syntax = None
     settings = dict()
     escapechar = '\\'
-    quotechar = '"'
+    quotechar = "'"
     headers = []
     converter = None
 
@@ -426,16 +426,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         null = null or 'null'
 
         # Creates escaped or proper NULL representation of a value.
-        def applytype(key, typ):
-            if key < 0 or key >= len(row) or row[key] is None:
+        def applytype(val, typ):
+            if val is None:
                 return null
             elif typ == str:
-                return '"{}"'.format(self._escape(row[key]))
+                return "{q}{}{q}".format(self._escape(val), q=self.quotechar)
             else:
-                return row[key]
+                return _cast(val, typ)
 
-        return field_break.join(field_format.format(field=self.headers[i], value=applytype(i, t))
-                                for i, t in enumerate(self.settings['types']))
+        return field_break.join(field_format.format(field=hed, value=applytype(val, typ))
+                                for val, hed, typ in zip_longest(row, self.headers, self.settings['types']))
 
     # Converters
     # Note that converters should call self.set_syntax
@@ -459,7 +459,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         for r, row in enumerate(data):
             for c, (value, item_type) in enumerate(zip(row, self.settings['types'])):
                 if item_type == str:
-                    value = '"{}"'.format(self._escape(value))
+                    value = '{q}{}{q}'.format(self._escape(value))
                 elif item_type is None:
                     value = 'null'
 
@@ -645,7 +645,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('Perl')
 
         linebreak = "}," + self.settings['newline'] + "{"
-        output = linebreak.join(self.type_loop(r, '"{field}"=>{value}', null='undef') for r in data)
+        output = linebreak.join(self.type_loop(r, '{q}{field}{q}=>{value}', null='undef') for r in data)
 
         return "[" + self.settings['newline'] + '{' + output + '}' + self.settings['newline'] + '];'
 
@@ -654,7 +654,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('PHP')
 
         return array_open + self.settings['newline'] + ("," + self.settings['newline']).join(
-            self.settings['indent'] + array_open + self.type_loop(row, '"{field}"=>{value}') + array_close
+            self.settings['indent'] + array_open + self.type_loop(row, '{q}{field}{q}=>{value}') + array_close
             for row in data
         ) + self.settings['newline'] + array_close + ";"
 
@@ -697,7 +697,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         # comment, comment_end = "#", ""
         output = (
             '[{n}{i}{{' +
-            '}},{n}{i}{{'.join(self.type_loop(row, '"{field}"=>{value}', null='nil') for row in data) +
+            '}},{n}{i}{{'.join(self.type_loop(row, '{q}{field}{q}=>{value}', null='nil') for row in data) +
             '}}{n}];'
         )
         return output.format(n=self.settings['newline'], i=self.settings['indent'])
