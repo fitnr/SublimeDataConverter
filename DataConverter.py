@@ -522,8 +522,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def dsv(self, data):
         '''
-            Delimited tabular format converter.
-            This is like taking coals to Newcastle, but useful for changing formats
+        Delimited tabular format converter.
+        This is like taking coals to Newcastle, but useful for changing formats
         '''
         self.set_syntax('Plain Text')
 
@@ -695,10 +695,12 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """Ruby converter"""
         self.set_syntax('Ruby')
         # comment, comment_end = "#", ""
-
-        linebreak = '},' + self.settings['newline'] + self.settings['indent'] + '{'
-        output = linebreak.join(self.type_loop(row, '"{field}"=>{value}', null='nil') for row in data)
-        return '[' + self.settings['newline'] + self.settings['indent'] + '{' + output + '}' + self.settings['newline'] + '];'
+        output = (
+            '[{n}{i}{{' +
+            '}},{n}{i}{{'.join(self.type_loop(row, '"{field}"=>{value}', null='nil') for row in data) +
+            '}}{n}];'
+        )
+        return output.format(n=self.settings['newline'], i=self.settings['indent'])
 
     def _sql(self, data, create):
         '''General SQL converter, used by MySQL, PostgreSQL, SQLite.'''
