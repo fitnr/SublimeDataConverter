@@ -43,13 +43,12 @@ or this (JSON):
 * JSON (array of rows)
 * JSON (object, first column is key)
 * Javascript object
-* MySQL
 * Perl
 * PHP (two formats)
 * Python (list of dicts)
 * Python (list of lists)
 * Ruby
-* SQLite
+* SQL (Postgres, MySQL and SQLite)
 * text table
 * Wiki markup
 * XML

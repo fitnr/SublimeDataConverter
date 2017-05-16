@@ -130,6 +130,15 @@ def _sqlite_type(t):
         return 'TEXT'
 
 
+def _postgres_type(t):
+    if t == float:
+        return 'numeric'
+    elif t == int:
+        return 'integer'
+    else:
+        return 'text'
+
+
 def _length(x):
     try:
         return len(str(x))
@@ -619,25 +628,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def mysql(self, data):
         """MySQL converter"""
-        # Uses {i} and {n} as shorthand for self.settings['indent'] and self.settings['newline'].
-        self.set_syntax('SQL')
-        table = self.settings['default_variable']
-
-        # CREATE TABLE statement
-        create_head = 'CREATE TABLE IF NOT EXISTS' + table + ' ({n}{i}id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,{n}'
-        create_fields = ',{n}{i}'.join(h + ' ' + _mysql_type(t) for h, t in zip(self.headers, self.settings['types']))
-
-        create = create_head + '{i}' + create_fields + '{n}) CHARACTER SET utf8;{n}'
-
-        # INSERT TABLE Statement
-        insert = 'INSERT INTO ' + table + "{n}{i}(" + ', '.join(self.headers) + '){n}'
-
-        # VALUES list
-        values = "VALUES{n}{i}(" + \
-            ('),{n}{i}('.join(self.type_loop(row, field_format='{value}', null='NULL') for row in data))
-
-        output = create + insert + values + ');'
-        return output.format(i=self.settings['indent'], n=self.settings['newline'])
+        fields = ',{n}{i}'.join(h + ' ' + _mysql_type(t) for h, t in zip(self.headers, self.settings['types']))
+        create = (
+            'CREATE TABLE IF NOT EXISTS {table} ('
+            '{n}{i}id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,{n}' +
+            '{i}' + fields + '{n}'
+            ');'
+        )
+        return self._sql(data, create)
 
     def perl(self, data):
         """Perl converter"""
@@ -665,6 +663,17 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """PHP 5.4 converter"""
         return self._php(data, '[', ']')
 
+    def postgres(self, data):
+        '''PostgreSQL converter'''
+        fields = ',{n}{i}'.join(h + ' ' + _postgres_type(t) for h, t in zip(self.headers, self.settings['types']))
+        create = (
+            'CREATE TABLE IF NOT EXISTS {table} ({n}'
+            '{i}id serial,{n}' +
+            '{i}' + fields + '{n}'
+            ');'
+        )
+        return self._sql(data, create)
+
     def python_dict(self, data):
         """Python dict converter"""
         self.set_syntax('Python')
@@ -686,27 +695,33 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         linebreak = '},' + self.settings['newline'] + self.settings['indent'] + '{'
         output = linebreak.join(self.type_loop(row, '"{field}"=>{value}', null='nil') for row in data)
-
         return '[' + self.settings['newline'] + self.settings['indent'] + '{' + output + '}' + self.settings['newline'] + '];'
+
+    def _sql(self, data, create):
+        '''General SQL converter, used by MySQL, PostgreSQL, SQLite.'''
+        # Uses {i} and {n} as shorthand for self.settings['indent'] and self.settings['newline'].
+        self.set_syntax('SQL')
+        fmt = (
+            create + '{n}' +
+            'INSERT INTO {table}{n}{i}({names}){n}VALUES{n}'
+            '{i}(' +
+            '),{n}{i}('.join(self.type_loop(row, field_format='{value}', null='NULL') for row in data) +
+            ');'
+        )
+        return fmt.format(create=create, table=self.settings['default_variable'], names=', '.join(self.headers),
+                          i=self.settings['indent'], n=self.settings['newline'])
 
     def sqlite(self, data):
         '''SQLite converter'''
-        self.set_syntax('SQL')
-        table = self.settings['default_variable']
-        create_head = 'CREATE TABLE IF NOT EXISTS ' + table + \
-            ' ({n}{i}id INTEGER PRIMARY KEY ON CONFLICT FAIL AUTOINCREMENT,{n}'
-        create_fields = ',{n}{i}'.join(h + ' ' + _sqlite_type(t) for h, t in zip(self.headers, self.settings['types']))
-        create = create_head + '{i}' + create_fields + '{n});{n}'
+        fields = ',{n}{i}'.join(h + ' ' + _sqlite_type(t) for h, t in zip(self.headers, self.settings['types']))
+        create = (
+            'CREATE TABLE IF NOT EXISTS {table} ({n}'
+            '{i}id INTEGER PRIMARY KEY ON CONFLICT FAIL AUTOINCREMENT,{n}'
+            '{i}' + fields +
+            '{n});'
+        )
 
-        # INSERT TABLE Statement
-        insert = 'INSERT INTO ' + table + "{n}{i}(" + ', '.join(self.headers) + '){n}'
-
-        # VALUES list
-        values = "VALUES{n}{i}(" + \
-            ('),{n}{i}('.join(self.type_loop(row, field_format='{value}', null='NULL') for row in data))
-
-        output = create + insert + values + ');'
-        return output.format(i=self.settings['indent'], n=self.settings['newline'])
+        return self._sql(data, create)
 
     def wiki(self, data):
         '''Wiki table converter'''

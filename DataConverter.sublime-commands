@@ -15,6 +15,7 @@
   { "caption": "DataConverter: to Perl", "command": "data_converter", "args": {"format": "perl" } },
   { "caption": "DataConverter: to PHP", "command": "data_converter", "args": {"format": "php4" } },
   { "caption": "DataConverter: to PHP 5.4", "command": "data_converter", "args": {"format": "php54" } },
+  { "caption": "DataConverter: to PostgreSQL", "command": "data_converter", "args": {"format": "postgres" } },
   { "caption": "DataConverter: to Python dict", "command": "data_converter", "args": {"format": "python_dict" } },
   { "caption": "DataConverter: to Python lists", "command": "data_converter", "args": {"format": "python_list" } },
   { "caption": "DataConverter: to Ruby", "command": "data_converter", "args": {"format": "ruby" } },
