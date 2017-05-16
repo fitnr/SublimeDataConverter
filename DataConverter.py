@@ -3,6 +3,7 @@ import csv
 import _csv
 import json
 import re
+from itertools import zip_longest
 from pprint import pformat
 import sublime
 import sublime_plugin
@@ -134,6 +135,13 @@ def _length(x):
         return len(str(x))
     except TypeError:
         return 0
+
+
+def _cast(value, typ_):
+    try:
+        return typ_(value)
+    except TypeError:
+        return value
 
 
 # Adding a format? Check if it belongs in no_space_formats or untyped_formats.
@@ -651,18 +659,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def python_dict(self, data):
         """Python dict converter"""
         self.set_syntax('Python')
-        fields = []
-        for row in data:
-            outrow = {}
-            for k, t in zip(self.headers, self.settings['types']):
-                if t == int:
-                    outrow[k] = int(row[k])
-                elif t == float:
-                    outrow[k] = float(row[k])
-                else:
-                    outrow[k] = row[k]
-            fields.append(outrow)
 
+        fields = [{k: _cast(v, t) for k, v, t in zip_longest(self.headers, row, self.settings['types'])}
+                  for row in data]
         return pformat(fields)
 
     def python_list(self, data):
