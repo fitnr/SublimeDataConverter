@@ -584,12 +584,13 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def json(self, data):
         """JSON properties converter"""
         self.set_syntax('JavaScript', 'JSON')
-        return json.dumps([dict(zip(self.headers, row)) for row in data], ensure_ascii=False)
+        return json.dumps([dict(zip(self.headers, row)) for row in data],
+                          indent=len(self.settings['indent']), ensure_ascii=False)
 
     def json_columns(self, data):
         """JSON Array of Columns converter"""
         self.set_syntax('JavaScript', 'JSON')
-        return json.dumps(list(zip(*data)), indent=len(self.settings['indent']), separators=(',', ':'))
+        return json.dumps(list(zip_longest(*data)), indent=len(self.settings['indent']), separators=(',', ':'))
 
     def json_rows(self, data):
         """JSON Array of Rows converter"""
@@ -599,7 +600,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def json_keyed(self, data):
         """JSON, first row is key"""
         self.set_syntax('JavaScript', 'JSON')
-        keydict = {self._escape(row[0]): {k: v for k, v in zip(self.headers, row)} for row in data}
+        try:
+            keydict = {self._escape(row[0]): {k: v for k, v in zip_longest(self.headers, row)} for row in data}
+        except IndexError:
+            raise IndexError('Problem converting to dictionary. Check that there are no empty rows.')
+
         return json.dumps(keydict, indent=len(self.settings['indent']), separators=(',', ':'))
 
     def markdown(self, data):
