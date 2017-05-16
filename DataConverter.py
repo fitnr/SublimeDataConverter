@@ -520,35 +520,32 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         self.set_syntax('HTML')
         thead, tbody = "", ""
 
-        def tr(row):
-            return "{i}{i}<tr>{n}" + row + "{i}{i}</tr>{n}"
+        tr = "{{i}}{{i}}<tr>{{n}}{0}{{i}}{{i}}</tr>"
 
         # Render the table head, if there is one
         if self.settings.get('has_header') is True:
-
             th = '{i}{i}{i}<th>' + (
                 '</th>{n}{i}{i}{i}<th>'.join(self.headers)
             ) + '</th>{n}'
+            thead = '{i}<thead>{n}' + tr.format(th) + '{n}{i}</thead>{n}'
 
-            thead = '{i}<thead>{n}' + tr(th) + '{i}</thead>{n}'
         else:
             thead = ''
 
         # Render table rows
-        for row in data:
-            rowText = ""
+        tbody = '{n}'.join(
+            tr.format('{n}'.join('{i}{i}{i}<td>' + self._escape(r) + '</td>' for r in row) + '{n}')
+            for row in data
+        )
 
-            for r in row:
-                rowText += '{i}{i}{i}<td>' + self._escape(r) + '</td>{n}'
-
-            tbody += tr(rowText)
-
-        table = "<table>{n}" + thead + "{i}<tbody>{n}" + tbody + "{i}</tbody>{n}</table>"
+        table = (
+            "<table>{n}" + thead + "{i}<tbody>{n}" + tbody + "{n}{i}</tbody>{n}</table>"
+        ).format(i=self.settings['indent'], n=self.settings['newline'])
 
         if self.settings['html_utf8']:
-            return table.format(i=self.settings['indent'], n=self.settings['newline'])
+            return table
         else:
-            return table.format(i=self.settings['indent'], n=self.settings['newline']).encode('ascii', 'xmlcharrefreplace')
+            return table.encode('ascii', 'xmlcharrefreplace')
 
     def gherkin(self, data):
         '''Cucumber/Gherkin converter'''
@@ -558,9 +555,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def javascript(self, data):
         """JavaScript object converter"""
         self.set_syntax('JavaScript')
-
         linebreak = '},' + self.settings['newline'] + self.settings['indent'] + '{'
-
         content = '{' + linebreak.join(self.type_loop(r, '"{field}": {value}', ', ') for r in data) + '}'
 
         return '[' + self.settings['newline'] + self.settings['indent'] + content + self.settings['newline'] + '];'
@@ -708,9 +703,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def wiki(self, data):
         '''Wiki table converter'''
         n = self.settings['newline']
-
         linebreak = '{0}|-{0}|'.format(n)
-
         header = '{| class="wikitable"' + n + '!' + ('!!').join(self.headers)
 
         return header + linebreak + linebreak.join(self.type_loop(row, '{value}', '||') for row in data) + n + '|}'
@@ -787,9 +780,11 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         field = ('{{i}}' * 4) + '<{field}>{{n}}' + ('{{i}}' * 5) + '<p>{value}</p>{{n}}' + ('{{i}}' * 4) + '</{field}>'
 
         for row in data:
-            output += ('{i}' * 3) + '<v:sampleDataSet dataSetName="' + row[0] + '">{n}'
-            output += '{n}'.join(field.format(field=f, value=v) for f, v in zip(self.headers, row)) + '{n}'
-            output += ('{i}' * 3) + '</v:sampleDataSet>{n}'
+            output += (
+                ('{i}' * 3) + '<v:sampleDataSet dataSetName="' + row[0] + '">{n}' +
+                '{n}'.join(field.format(field=f, value=v) for f, v in zip(self.headers, row)) + '{n}' +
+                ('{i}' * 3) + '</v:sampleDataSet>{n}'
+            )
 
         output += (
             '{i}{i}</v:sampleDataSets>{n}'
