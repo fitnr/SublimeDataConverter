@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import csv
 import _csv
 import json
@@ -259,7 +260,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def get_settings(self, kwargs):
         '''Get settings from kwargs, user settings.'''
-
         settings = dict()
         user_settings = sublime.load_settings('DataConverter.sublime-settings')
 
@@ -278,10 +278,13 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         settings['typed'] = kwargs['format'] not in self.untyped_formats
 
         # New lines
-        settings['newline'] = user_settings.get('line_sep') or '\n'
+        settings['newline'] = user_settings.get('line_sep') or os.linesep
 
         user_quoting = user_settings.get('quoting', 'QUOTE_MINIMAL')
         settings['quoting'] = getattr(csv, user_quoting, csv.QUOTE_MINIMAL)
+
+        # Quote stripping
+        settings['strip_quotes'] = user_settings.get('strip_quotes', True)
 
         # Indentation
         if self.view.settings().get('translate_tabs_to_spaces'):
@@ -289,6 +292,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             settings['indent'] = " " * tabsize
         else:
             settings['indent'] = "\t"
+
+        # header-joiner
+        settings['header_joiner'] = user_settings.get('header_joiner', '')
 
         # HTML characters
         settings['html_utf8'] = user_settings.get('html_utf8', True)
@@ -347,9 +353,6 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('mergeheaders', False) is True:
             hj = self.settings.get('header_joiner', '_')
             headers = [x.replace(' ', hj) for x in headers]
-
-        if self.settings.get('strip_quotes', True):
-            headers = [j.strip('"\'') for j in headers]
 
         return headers
 
@@ -547,7 +550,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         writer = csv.writer(sink,
                             dialect=self.settings.get('output_dialect'),
                             delimiter=self.settings.get('output_delimiter'),
-                            lineterminator=self.settings.get('newline', '\n'))
+                            lineterminator=self.settings.get('newline', os.linesep))
         if self.settings.get('has_header') is not False:
             writer.writerow(self.headers)
         writer.writerows(data)
