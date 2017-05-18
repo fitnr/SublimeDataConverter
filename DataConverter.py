@@ -701,8 +701,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def python_list(self, data):
         """Python list of lists converter"""
         self.set_syntax('Python')
-        fields = [[t(r) for r, t in zip(row, self.settings['types'])] for row in data]
-        return '# headers = ' + repr(self.headers) + self.settings['newline'] + pformat(fields)
+        fields = [[_cast(r, t) for r, t in zip_longest(row, self.settings['types'])] for row in data]
+        return '# headers = {}{n}{}'.format(self.headers, pformat(fields), n=self.settings['newline'])
 
     def ruby(self, data):
         """Ruby converter"""
