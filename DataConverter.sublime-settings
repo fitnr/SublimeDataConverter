@@ -1,11 +1,12 @@
 {
   // Should be either true, "sniff" or "never"
-  // When true, the first row is treated as the header row
+  // When true, the first row is always treated as the header row
   // When "sniff", DataConverter will sniff for headers (sniffing isn't perfect)
-  // When "never", DataConverter will use default headers looks like [val1, val2, ...]
+  // When false, DataConverter will assume there are no headers, and use default headers ([val1, val2, ...])
   "headers": "sniff",
 
-  // Set to either a character or null. When null, DataConverter uses the OS line separator, which is "\r" in Windows.
+  // Newline character for output. Set to either a character or null.
+  // When null, DataConverter uses the OS line separator, which is "\r" in Windows.
   "line_sep": null,
 
   // Define a dialect for the csv reader
@@ -41,7 +42,7 @@
   "delimiter": ",",
 
   // For formats where keys can't have spaces, field names will be joined with this character.
-  // e.g. "First Name" => "First_Name"
+  // By default, an underscore is used, e.g. 'Col Name' becomes 'Col_Name'
   // An empty string is OK
   "header_joiner": "_",
 
@@ -55,8 +56,7 @@
   // If false: leaves selection(s) in place
   "deselect_after": false
 
-  // For MySQL conversions, DataConverter must name the table being created
+  // For some conversions (SQL, ASP), DataConverter must name the table or array being created
   // By default, it's called 'DataConverter', set your own value here
   // "default_variable": "DataConverter"
-
 }
