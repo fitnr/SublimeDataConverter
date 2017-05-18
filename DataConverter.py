@@ -444,7 +444,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             else:
                 return _cast(val, typ)
 
-        return field_break.join(field_format.format(field=hed, value=applytype(val, typ))
+        return field_break.join(field_format.format(field=hed, value=applytype(val, typ), q=self.quotechar)
                                 for val, hed, typ in zip_longest(row, self.headers, types))
 
     # Converters
@@ -659,11 +659,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def perl(self, data):
         """Perl converter"""
         self.set_syntax('Perl')
-
-        linebreak = "}," + self.settings['newline'] + "{"
-        output = linebreak.join(self.type_loop(r, '{q}{field}{q}=>{value}', null='undef') for r in data)
-
-        return "[" + self.settings['newline'] + '{' + output + '}' + self.settings['newline'] + '];'
+        output = "}},{n}{i}{{".join(self.type_loop(r, '{q}{field}{q}=>{value}', null='undef') for r in data)
+        return ("[{n}{i}{{" + output + '}}{n}];').format(n=self.settings['newline'], i=self.settings['indent'])
 
     def _php(self, data, array_open, array_close):
         """General PHP Converter"""
@@ -711,12 +708,8 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """Ruby converter"""
         self.set_syntax('Ruby')
         # comment, comment_end = "#", ""
-        output = (
-            '[{n}{i}{{' +
-            '}},{n}{i}{{'.join(self.type_loop(row, '{q}{field}{q}=>{value}', null='nil') for row in data) +
-            '}}{n}];'
-        )
-        return output.format(n=self.settings['newline'], i=self.settings['indent'])
+        output = '}},{n}{i}{{'.join(self.type_loop(row, '{q}{field}{q}=>{value}', null='nil') for row in data)
+        return ('[{n}{i}{{' + output + '}}{n}];').format(n=self.settings['newline'], i=self.settings['indent'])
 
     def _sql(self, data, create):
         '''General SQL converter, used by MySQL, PostgreSQL, SQLite.'''
@@ -762,7 +755,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             ) + "{n}{i}</row>"
             for row in data
         )
-        output = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}' + rows + "</rows>"
+        output = '<?xml version="1.0" encoding="UTF-8"?>{n}<rows>{n}' + rows + "{n}</rows>"
         return output.format(i=self.settings['indent'], n=self.settings['newline'])
 
     def xml_properties(self, data):
