@@ -462,20 +462,23 @@ class DataConverterCommand(sublime_plugin.TextCommand):
     def asp(self, data):
         self.set_syntax('ASP')
         # comment, comment_end = "'", ""
-        output = ''
-        c, r = 0, 0
-        cell = self.settings['newline'] + self.settings['default_variable'] + '({0},{1}) = '
+        output = []
+        C, r = 0, 0
+        cell = self.settings['default_variable'] + '({c},{r})'
 
         for r, row in enumerate(data):
-            for c, (value, item_type) in enumerate(zip_longest(row, self.settings['types'])):
-                if item_type == str:
-                    value = '{q}{}{q}'.format(self._escape(value), q=self.quotechar)
-                elif item_type is None:
-                    value = 'null'
+            for c, (value, typ) in enumerate(zip_longest(row, self.settings['types'])):
+                typ = typ or get_type(value)
+                arr = '{q}{}{q}' if typ == str else '{}'
+                v = self._escape(value or 'null')
+                output.append((cell + ' = ' + arr).format(v, c=c, r=r, q=self.quotechar))
 
-                output += cell.format(c, r) + value
+            C = max(C, len(row))
 
-        return 'Dim ' + cell.format(c, r)[1:-3] + output
+        dim = 'Dim ' + cell.format(c=C, r=r, n='')
+        output.insert(0, dim)
+        output.insert(0, "' columnNames = Array(\"{}\")".format('", "'.join(self.headers)))
+        return self.settings['newline'].join(output) + self.settings['newline']
 
     def _spaced_text(self, data, delimiter, row_decoration=None, **kwargs):
         '''
