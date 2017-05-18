@@ -467,9 +467,9 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         cell = self.settings['newline'] + self.settings['default_variable'] + '({0},{1}) = '
 
         for r, row in enumerate(data):
-            for c, (value, item_type) in enumerate(zip(row, self.settings['types'])):
+            for c, (value, item_type) in enumerate(zip_longest(row, self.settings['types'])):
                 if item_type == str:
-                    value = '{q}{}{q}'.format(self._escape(value))
+                    value = '{q}{}{q}'.format(self._escape(value), q=self.quotechar)
                 elif item_type is None:
                     value = 'null'
 
