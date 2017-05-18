@@ -243,7 +243,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
             if self.settings['typed']:
                 # Assign a list of tuples (headername, type)
-                self.settings['types'] = self.get_types(selection, self.headers)
+                self.settings['types'] = self.get_types(selection)
                 print('DataConverter found these fields and types:', self.settings['types'])
 
             # Run converter
@@ -370,10 +370,10 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
         return reader
 
-    def get_types(self, selection, headers):
-        # If untypes, we don't want any quoting, so treat everything like an int
+    def get_types(self, selection):
+        # If untyped, return empty list.
         if self.settings.get('typed', False) is False:
-            return list(zip(headers, (int,) * len(headers)))
+            return []
 
         if self.settings.get('has_header', False) is True:
             selection = selection[selection.find(self.settings['newline']):]
@@ -385,9 +385,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings.get('has_header', False) is True:
             next(typer)
 
-        types = parse_types(typer)
-
-        return list(types)
+        return list(parse_types(typer))
 
     def deselect(self):
         """Remove selection and place pointer at top of document (adapted from https://gist.github.com/1608283)."""
@@ -435,6 +433,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         """
         field_break = field_break or ', '
         null = null or 'null'
+        types = self.settings.get('types', [])
 
         # Creates escaped or proper NULL representation of a value.
         def applytype(val, typ):
@@ -446,7 +445,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
                 return _cast(val, typ)
 
         return field_break.join(field_format.format(field=hed, value=applytype(val, typ))
-                                for val, hed, typ in zip_longest(row, self.headers, self.settings['types']))
+                                for val, hed, typ in zip_longest(row, self.headers, types))
 
     # Converters
     # Note that converters should call self.set_syntax
