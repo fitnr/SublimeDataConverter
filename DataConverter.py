@@ -588,7 +588,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings['html_utf8']:
             return table
         else:
-            return table.encode('ascii', 'xmlcharrefreplace')
+            return table.encode('ascii', 'xmlcharrefreplace').decode('ascii')
 
     def gherkin(self, data):
         '''Cucumber/Gherkin converter'''
