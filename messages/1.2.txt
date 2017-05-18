@@ -1,0 +1,10 @@
+DataConverter 1.2
+-------------------
+
+Add PostgreSQL converter.
+
+Improved handling of ideographic (Chinese, Japanese, Korean) characters in spaced text formats.
+
+Improved handling of CSVs with irregular number of columns in many formats.
+
+If you have a problem or there's a format you would like to see in DataConverter, visit https://github.com/fitnr/SublimeDataConverter/issues
