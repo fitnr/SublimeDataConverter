@@ -21,6 +21,12 @@ https://github.com/fitnr/SublimeDataConverter
 
 Freely adapted from Mr. Data Converter: http://shancarter.com/data_converter/
 """
+LINEENDINGS = {
+    'Unix': '\n',
+    'Windows': '\r\n',
+    'CR': '\r',
+    'LF': '\n',
+}
 
 # Borrowed from Apply Syntax
 
@@ -278,7 +284,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         settings['typed'] = kwargs['format'] not in self.untyped_formats
 
         # New lines
-        settings['newline'] = user_settings.get('line_sep') or os.linesep
+        settings['newline'] = LINEENDINGS.get(self.view.line_endings(), os.linesep)
 
         user_quoting = user_settings.get('quoting', 'QUOTE_MINIMAL')
         settings['quoting'] = getattr(csv, user_quoting, csv.QUOTE_MINIMAL)

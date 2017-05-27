@@ -94,13 +94,6 @@ Possible values: `"sniff"`, `true`, or `false`.
 ````
 When true, the first row is always treated as the header row. When "sniff", DataConverter will sniff for headers (sniffing isn't perfect). When false, DataConverter will assume there are no headers, and use default headers (`[val1, val2, ...]`).
 
-#### line_sep
-Character or null
-````
-"line_sep": null
-````
-Newline character for output. Set to either a character or `null`. When `null`, DataConverter uses the OS line separator, which is `"\r"` in Windows.
-
 #### dialects
 Object
 ````

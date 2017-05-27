@@ -5,10 +5,6 @@
   // When false, DataConverter will assume there are no headers, and use default headers ([val1, val2, ...])
   "headers": "sniff",
 
-  // Newline character for output. Set to either a character or null.
-  // When null, DataConverter uses the OS line separator, which is "\r" in Windows.
-  "line_sep": null,
-
   // Define a dialect for the csv reader
   // Check the python docs for a description of how to define a dialect
   // https://docs.python.org/3.3/library/csv.html#dialects-and-formatting-parameters
