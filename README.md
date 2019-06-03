@@ -43,6 +43,7 @@ or this (JSON):
 * JSON (array of rows)
 * JSON (object, first column is key)
 * Javascript object
+* Markdown (Github-flavored)
 * Perl
 * PHP (two formats)
 * Python (list of dicts)
