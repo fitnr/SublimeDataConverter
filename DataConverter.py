@@ -146,9 +146,11 @@ def _postgres_type(t):
     else:
         return 'text'
 
+
 def _escape(string):
     '''Escape &, < and >'''
     return string.replace('<', '&lt;').replace('>', '&gt;')
+
 
 def _length(x):
     try:
@@ -327,7 +329,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if self.settings['headers'] is True:
             self.settings['has_header'] = True
 
-        elif self.settings['headers'] is 'never':
+        elif self.settings['headers'] == 'never' or self.settings['headers'] is False:
             self.settings['has_header'] = False
 
         else:
