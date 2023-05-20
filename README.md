@@ -89,10 +89,12 @@ Pull requests with additional formats are encouraged.
 DataConverter reads the following options from your settings file (Preferences > Package Settings > DataConverter > Settings - User).
 
 #### headers
+
 Possible values: `"sniff"`, `true`, or `false`.
 ````
 "headers": "sniff"
 ````
+
 When true, the first row is always treated as the header row. When "sniff", DataConverter will sniff for headers (sniffing isn't perfect). When false, DataConverter will assume there are no headers, and use default headers (`[val1, val2, ...]`).
 
 #### dialects

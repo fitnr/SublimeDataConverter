@@ -268,7 +268,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
             deselect_flag = False
 
         if self.syntax is not None:
-            self.view.set_syntax_file(self.syntax)
+            self.view.assign_syntax(self.syntax)
 
         if deselect_flag or self.settings.get("deselect_after"):
             self.deselect()
@@ -427,14 +427,16 @@ class DataConverterCommand(sublime_plugin.TextCommand):
         if new_syntax != current_syntax:
             try:
                 sublime.load_resource(new_syntax)
-                self.view.set_syntax_file(new_syntax)
-            except OSError:
+                self.view.assign_syntax(new_syntax)
+            except OSError as err:
+                print("DataConverter: Unable to set syntax ({}).".format(err))
                 new_syntax = new_syntax.replace(".sublime-syntax", ".tmLanguage")
                 try:
                     sublime.load_resource(new_syntax)
-                    self.view.set_syntax_file(new_syntax)
+                    self.view.assign_syntax(new_syntax)
                 except OSError as err:
                     print("DataConverter: Unable to set syntax ({}).".format(err))
+                    print("self.view.syntax().path: {}".format(self.view.syntax().path))
 
     def _escape(self, string):
         """Add an escape character in front of a quote character in given string."""
@@ -676,7 +678,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def json(self, data):
         """JSON properties converter"""
-        self.set_syntax("JavaScript", "JSON")
+        self.set_syntax("JSON")
         return json.dumps(
             [dict(zip(self.headers, row)) for row in data],
             indent=len(self.settings["indent"]),
@@ -685,7 +687,7 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def json_columns(self, data):
         """JSON Array of Columns converter"""
-        self.set_syntax("JavaScript", "JSON")
+        self.set_syntax("JSON")
         return json.dumps(
             list(zip_longest(*data)),
             indent=len(self.settings["indent"]),
@@ -694,14 +696,14 @@ class DataConverterCommand(sublime_plugin.TextCommand):
 
     def json_rows(self, data):
         """JSON Array of Rows converter"""
-        self.set_syntax("JavaScript", "JSON")
+        self.set_syntax("JSON")
         return json.dumps(
             list(data), indent=len(self.settings["indent"]), separators=(",", ":")
         )
 
     def json_keyed(self, data):
         """JSON, first row is key"""
-        self.set_syntax("JavaScript", "JSON")
+        self.set_syntax("JSON")
         try:
             keydict = {
                 self._escape(row[0]): {k: v for k, v in zip_longest(self.headers, row)}
